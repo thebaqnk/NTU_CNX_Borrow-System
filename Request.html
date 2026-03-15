@@ -1,0 +1,59 @@
+<script>
+const liffId = "ใส่_LIFF_ID_ของคุณ";
+const GAS_URL = "ใส่_GAS_WEB_APP_URL_ของคุณ"; 
+let lineId = "";
+let currentUser = null;
+
+async function callGAS(action, data = {}) {
+    const response = await fetch(GAS_URL, { 
+      method: "POST", 
+      body: JSON.stringify({ action, email: lineId, ...data }) 
+    });
+    return response.json();
+}
+
+async function initPage() {
+  Swal.fire({ title: 'กำลังโหลดข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+  try {
+    await liff.init({ liffId });
+    if (!liff.isLoggedIn()) { liff.login(); return; }
+    const profile = await liff.getProfile();
+    lineId = profile.userId;
+
+    const user = await callGAS("getUserData");
+    Swal.close();
+    if (user) {
+      currentUser = user;
+      document.getElementById('dispName').textContent = user.name;
+      document.getElementById('dispPhone').textContent = "📞 " + user.phone;
+      document.getElementById('dispRole').textContent = "บทบาท: " + user.role;
+      document.getElementById('userProfile').classList.remove('d-none');
+    } else {
+      Swal.fire('ข้อมูลผู้ใช้ไม่ครบ', 'กรุณากลับไปหน้าหลักเพื่อลงทะเบียน', 'warning');
+    }
+  } catch (err) { Swal.close(); Swal.fire('Error', err.message, 'error'); }
+}
+
+async function submitRequest() {
+  if (!currentUser) return;
+  const room = document.getElementById('requestRoom').value;
+  const retDate = document.getElementById('returnDate').value;
+  const note = document.getElementById('requestNote').value.trim();
+
+  if (!room || !retDate) return Swal.fire('กรุณากรอกข้อมูลให้ครบ', '', 'warning');
+
+  Swal.fire({ title: 'กำลังส่งคำขอ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+  const res = await callGAS("processAction", { 
+    obj: { id: "OT", name: currentUser.name, phone: currentUser.phone, role: currentUser.role, room: room, returnDate: retDate, note: note, action: "overtime_request" } 
+  });
+
+  Swal.close();
+  if (res === "OK" || res === "WAIT_APPROVE") {
+    Swal.fire('สำเร็จ', 'ส่งคำขอเรียบร้อยแล้ว', 'success').then(() => liff.closeWindow());
+  } else {
+    Swal.fire('ผิดพลาด', 'ส่งคำขอไม่สำเร็จ', 'error');
+  }
+}
+// navBack() คงเดิม
+</script>
