@@ -2,24 +2,49 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>คืนอุปกรณ์สำเร็จ</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-  <script src="config.js"></script>
 </head>
 <body style="background-color: #f8f9fa; display: flex; justify-content: center; align-items: center; min-height: 100vh; font-family: sans-serif;">
   <div class="text-center p-5 bg-white rounded-5 shadow" style="max-width:400px; width:90%;">
-    <h1 style="font-size: 80px;">✅</h1>
+    <h1 style="font-size: 80px; margin-bottom: 20px;">✅</h1>
     <h2 class="fw-bold text-success">คืนสำเร็จ</h2>
-    <p class="text-muted">ขอบคุณที่ช่วยดูแลรักษาอุปกรณ์</p>
+    <p class="text-muted">ขอบคุณที่ช่วยดูแลรักษาอุปกรณ์<br>ระบบได้บันทึกการคืนเรียบร้อยแล้ว</p>
     <br>
-    <button onclick="closeLiff()" class="btn btn-outline-secondary w-100">ปิดหน้าต่าง</button>
+    <button onclick="closeLiff()" class="btn btn-outline-secondary w-100 py-2" style="border-radius: 12px;">ปิดหน้าต่าง</button>
   </div>
+
   <script>
-    async function closeLiff() {
-      await liff.init({ liffId: CONFIG.LIFF_ID }); //Private_URL
-      liff.closeWindow();
+    // --- ฝังค่าจริง (Hardcoded) ---
+    const LIFF_ID = "2009184396-t5vJHbvQ"; 
+
+    // เริ่มทำงาน LIFF ทันทีที่โหลดหน้าจอ เพื่อเตรียมพร้อมสำหรับการปิดหน้าต่าง
+    async function initLiff() {
+      try {
+        await liff.init({ liffId: LIFF_ID });
+      } catch (err) {
+        console.error("LIFF Init Error", err);
+      }
     }
+
+    async function closeLiff() {
+      try {
+        // ถ้า LIFF พร้อมแล้วให้ปิดหน้าต่างทันที
+        if (liff.isLoggedIn()) {
+          liff.closeWindow();
+        } else {
+          // ถ้าไม่ได้อยู่ใน LINE ให้ปิด Tab ปกติ
+          window.close();
+        }
+      } catch (err) {
+        window.close();
+      }
+    }
+
+    // รันฟังก์ชัน Init
+    document.addEventListener("DOMContentLoaded", initLiff);
   </script>
 </body>
 </html>
