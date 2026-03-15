@@ -7,6 +7,9 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  
+  <script src="config.js"></script>
+
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap');
     :root { --p-purple: #9d85e1; --l-purple: #f3f0ff; --d-purple: #7a61c5; --soft-bg: #f8f7ff; }
@@ -20,6 +23,7 @@
     .spinner { width: 3.5rem; height: 3.5rem; border: 5px solid var(--l-purple); border-top: 5px solid var(--p-purple); border-radius: 50%; animation: spin 1s linear infinite; margin: 20px auto; }
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     .d-none { display: none !important; }
+    .version-text { font-size: 0.7rem; color: #ccc; text-align: center; margin-top: 15px; }
   </style>
 </head>
 <body>
@@ -48,12 +52,15 @@
       </div>
 
       <div id="actionArea" class="d-none"></div>
+      <div class="version-text" id="versionDisp"></div>
     </div>
   </div>
 
 <script>
-  const GAS_URL = "GAS_API"; //Private_URL 
-  const LIFF_ID = "LIFF_ID"; //Private_URL  
+  // ดึงค่ามาจากไฟล์ config.js
+  const GAS_URL = CONFIG.API_ENDPOINT; 
+  const LIFF_ID = CONFIG.LIFF_ID;  
+
   let sys = { 
     id: new URLSearchParams(window.location.search).get('id') || "", 
     mode: new URLSearchParams(window.location.search).get('mode') || "main",
@@ -75,6 +82,9 @@
 
   async function init() {
     try {
+      // แสดงเวอร์ชันที่มุมล่าง
+      if(CONFIG.VERSION) document.getElementById('versionDisp').innerText = "v" + CONFIG.VERSION;
+
       await liff.init({ liffId: LIFF_ID });
       if (!liff.isLoggedIn()) { liff.login(); return; }
       const profile = await liff.getProfile();
@@ -132,7 +142,7 @@
     Swal.fire({ title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading() });
     const res = await callGAS("recordVerify", { id: sys.id });
     if(res === "SUCCESS") {
-        window.location.href = "VerifySuccess.html"; // ไปหน้าเช็คอินสำเร็จ
+        window.location.href = "VerifySuccess.html";
     } else {
         Swal.fire('ผิดพลาด', 'ไม่สามารถบันทึกได้', 'error');
     }
@@ -145,9 +155,9 @@
     
     if(res === "OK") {
         if (act === "ยืมอุปกรณ์") {
-            window.location.href = "BorrowSuccess.html"; // ไปหน้ายืมสำเร็จ
+            window.location.href = "BorrowSuccess.html";
         } else {
-            window.location.href = "ReturnSuccess.html"; // ไปหน้าคืนสำเร็จ
+            window.location.href = "ReturnSuccess.html";
         }
     } else {
         Swal.fire('ผิดพลาด', 'บันทึกไม่สำเร็จ', 'error');
