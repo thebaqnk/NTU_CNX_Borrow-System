@@ -29,7 +29,7 @@
   <div class="card">
     <div id="loadingScreen" class="text-center">
       <div class="spinner"></div>
-      <p class="text-muted fw-bold">กำลังเชื่อมต่อระบบ...</p>
+      <p id="statusText" class="text-muted fw-bold">กำลังเชื่อมต่อระบบ...</p>
     </div>
 
     <div id="contentArea" class="d-none">
@@ -44,8 +44,12 @@
 
       <div id="regForm" class="d-none">
         <h6 class="fw-bold mb-3">ลงทะเบียนผู้ใช้</h6>
-        <select id="uRole" class="form-select mb-2"><option>นักศึกษา</option><option>อาจารย์</option><option>บุคลากร</option></select>
-        <input type="text" id="uName" class="form-control mb-2" placeholder="ชื่อ">
+        <select id="uRole" class="form-select mb-2">
+          <option>นักศึกษา</option>
+          <option>อาจารย์</option>
+          <option>บุคลากร</option>
+        </select>
+        <input type="text" id="uName" class="form-control mb-2" placeholder="ชื่อ-นามสกุล">
         <input type="tel" id="uPhone" class="form-control mb-3" placeholder="เบอร์โทรศัพท์">
         <button onclick="saveUser()" class="btn btn-purple">บันทึกและใช้งาน</button>
       </div>
@@ -56,9 +60,9 @@
   </div>
 
 <script>
-  // ดึงค่ามาจากไฟล์ config.js
-  const GAS_URL = CONFIG.API_ENDPOINT; 
-  const LIFF_ID = CONFIG.LIFF_ID;  
+  // ดึงค่าจาก Config (ใส่ fallback กันพัง)
+  const GAS_URL = (typeof CONFIG !== 'undefined') ? CONFIG.API_ENDPOINT : ""; 
+  const LIFF_ID = (typeof CONFIG !== 'undefined') ? CONFIG.LIFF_ID : "";  
 
   let sys = { 
     id: new URLSearchParams(window.location.search).get('id') || "", 
@@ -68,6 +72,10 @@
 
   async function callGAS(action, data = {}) {
     try {
+      // ตรวจสอบว่า URL ของ GAS ถูกต้องไหม
+      if (!GAS_URL || GAS_URL.includes("process.env")) {
+        throw new Error("API Endpoint ไม่ถูกต้อง (Config Error)");
+      }
       const response = await fetch(GAS_URL, { 
         method: "POST", 
         body: JSON.stringify({ action, email: sys.email, ...data }) 
@@ -80,26 +88,48 @@
   }
 
   async function init() {
+    const statusText = document.getElementById('statusText');
     try {
-      // แสดงเวอร์ชันที่มุมล่าง
+      // 1. ตรวจสอบ Config ก่อนเริ่ม
+      if (typeof CONFIG === 'undefined' || !LIFF_ID || LIFF_ID.includes("process.env")) {
+        statusText.innerHTML = "<span class='text-danger'>❌ ระบบยังไม่ได้ตั้งค่า LIFF ID<br><small>กรุณาตรวจสอบ Vercel Environment Variables</small></span>";
+        return;
+      }
+
       if(CONFIG.VERSION) document.getElementById('versionDisp').innerText = "v" + CONFIG.VERSION;
 
+      // 2. เริ่มต้น LIFF SDK
       await liff.init({ liffId: LIFF_ID });
-      if (!liff.isLoggedIn()) { liff.login(); return; }
+
+      // 3. ตรวจสอบการ Login (จุดที่ระบบจะพาไปหน้า Login อัตโนมัติ)
+      if (!liff.isLoggedIn()) { 
+        liff.login(); 
+        return; 
+      }
+
+      // 4. ดึงข้อมูลโปรไฟล์หลัง Login สำเร็จ
       const profile = await liff.getProfile();
       sys.email = profile.userId;
 
       if (sys.mode === "history") { renderHistory(); return; } 
 
+      // 5. ดึงข้อมูลจาก Google Sheets
       const [info, user, verified] = await Promise.all([
         callGAS("getInventoryData", { id: sys.id }),
         callGAS("getUserData"),
         callGAS("checkVerifyStatus")
       ]);
 
+      if (!info) {
+        throw new Error("ไม่สามารถเชื่อมต่อฐานข้อมูล Google Sheets ได้");
+      }
+
       renderMain(info, user, verified);
+
     } catch (e) { 
-        Swal.fire("Error", "โหลดข้อมูลไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่อ", "error"); 
+        console.error("Init error:", e);
+        statusText.innerHTML = `<span class='text-danger'>ขออภัย เกิดข้อผิดพลาด<br><small>${e.message}</small></span>`;
+        Swal.fire("Error", e.message, "error"); 
     }
   }
 
@@ -122,23 +152,23 @@
       if (info.type === "POINT") {
         actionHtml = `<button onclick="doVerify()" class="btn btn-purple">เช็คอินที่นี่</button>`;
       } else {
-        if (info.status.includes("ยืม")) {
+        if (info.status && info.status.includes("ยืม")) {
           actionHtml = verified 
             ? `<button onclick="doAction('คืนอุปกรณ์')" class="btn btn-purple" style="background:#6c5ce7">ยืนยันการคืน</button>`
-            : `<div class="alert alert-danger small text-center">กรุณาสแกนจุดคืนก่อน</div>`;
+            : `<div class="alert alert-danger small text-center mb-0">กรุณาสแกนจุดคืนก่อน</div>`;
         } else {
           actionHtml = `<button onclick="doAction('ยืมอุปกรณ์')" class="btn btn-purple">ยืนยันการยืม</button>`;
         }
       }
       document.getElementById('actionArea').innerHTML = actionHtml;
-      document.getElementById('verifyStatus').innerHTML = info.status.includes("ยืม") ? `<span class="badge ${verified ? 'bg-success' : 'bg-secondary'}">${verified ? 'เช็คอินแล้ว' : 'ยังไม่เช็คอิน'}</span>` : "";
+      document.getElementById('verifyStatus').innerHTML = (info.status && info.status.includes("ยืม")) ? `<span class="badge ${verified ? 'bg-success' : 'bg-secondary'}">${verified ? 'เช็คอินแล้ว' : 'ยังไม่เช็คอิน'}</span>` : "";
     } else {
       document.getElementById('regForm').classList.remove('d-none');
     }
   }
 
   async function doVerify() {
-    Swal.fire({ title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading() });
+    Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
     const res = await callGAS("recordVerify", { id: sys.id });
     if(res === "SUCCESS") {
         window.location.href = "VerifySuccess.html";
@@ -148,16 +178,12 @@
   }
 
   async function doAction(act) {
-    Swal.fire({ title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading() });
+    Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
     const user = await callGAS("getUserData");
     const res = await callGAS("processAction", { obj: { id: sys.id, action: act, name: user.name, phone: user.phone, role: user.role } });
     
     if(res === "OK") {
-        if (act === "ยืมอุปกรณ์") {
-            window.location.href = "BorrowSuccess.html";
-        } else {
-            window.location.href = "ReturnSuccess.html";
-        }
+        window.location.href = (act === "ยืมอุปกรณ์") ? "BorrowSuccess.html" : "ReturnSuccess.html";
     } else {
         Swal.fire('ผิดพลาด', 'บันทึกไม่สำเร็จ', 'error');
     }
@@ -171,7 +197,7 @@
     };
     if(!data.name || !data.phone) { Swal.fire('เตือน', 'กรุณากรอกข้อมูลให้ครบ', 'warning'); return; }
     
-    Swal.fire({ title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading() });
+    Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
     const res = await callGAS("saveUserData", { data });
     if(res === "SUCCESS") {
         location.reload(); 
