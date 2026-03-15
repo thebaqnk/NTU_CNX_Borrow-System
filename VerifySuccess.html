@@ -50,7 +50,7 @@
     // เริ่มทำงาน LIFF เพื่อให้หน้าเว็บรองรับฟีเจอร์ของ LINE
     async function initLiff() {
       try {
-        await liff.init({ liffId: "LIFF_ID" }); //Private_URL
+        await liff.init({ liffId: CONFIG.LIFF_ID }); 
       } catch (err) {
         console.error("LIFF Init Error", err);
       }
