@@ -1,130 +1,123 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ส่งคำขอใช้งานนอกเวลา</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-  
-  <script src="config.js"></script>
-
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap');
-    body { background: #f8f7ff; font-family: 'Sarabun', sans-serif; padding: 20px; }
-    .card { border-radius: 20px; border: none; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
-    .btn-primary { background-color: #9d85e1; border: none; border-radius: 12px; padding: 12px; }
-    .btn-primary:hover { background-color: #7a61c5; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ขอยืมอุปกรณ์นอกเวลา</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap');
+        body { background-color: #f8f7ff; font-family: 'Sarabun', sans-serif; padding: 20px; }
+        .card { border-radius: 20px; border: none; box-shadow: 0 10px 20px rgba(157, 133, 225, 0.1); }
+        .btn-purple { background-color: #9d85e1; color: white; border-radius: 12px; padding: 12px; font-weight: bold; border: none; width: 100%; }
+        .btn-purple:hover { background-color: #7a61c5; color: white; }
+    </style>
 </head>
-<body onload="initPage()">
+<body>
+    <div class="container d-flex justify-content-center">
+        <div class="card p-4 w-100" style="max-width: 450px;">
+            <h4 class="fw-bold text-center mb-4" style="color: #7a61c5;">📝 ขอยืมอุปกรณ์นอกเวลา</h4>
+            
+            <div id="loading" class="text-center">
+                <div class="spinner-border text-primary" role="status"></div>
+                <p class="mt-2">กำลังโหลดข้อมูลโปรไฟล์...</p>
+            </div>
 
-  <div class="container" style="max-width: 500px;">
-    <div class="card p-4 mt-3">
-      <h4 class="fw-bold text-center mb-4">📝 ส่งคำขอใช้งานนอกเวลา</h4>
-      
-      <div id="userProfile" class="d-none alert alert-light border mb-3">
-        <h6 id="dispName" class="fw-bold mb-1"></h6>
-        <small id="dispPhone" class="text-muted d-block"></small>
-        <small id="dispRole" class="text-muted"></small>
-      </div>
-
-      <div class="mb-3">
-        <label class="form-label">ระบุห้องที่เข้าใช้งาน</label>
-        <input type="text" id="requestRoom" class="form-control" placeholder="เช่น ห้องประชุม 1">
-      </div>
-
-      <div class="mb-3">
-        <label class="form-label">วันที่คาดว่าจะคืน</label>
-        <input type="date" id="returnDate" class="form-control">
-      </div>
-
-      <div class="mb-3">
-        <label class="form-label">หมายเหตุ / วัตถุประสงค์</label>
-        <textarea id="requestNote" class="form-control" rows="3" placeholder="ระบุเหตุผลการใช้งาน"></textarea>
-      </div>
-
-      <button onclick="submitRequest()" class="btn btn-primary w-100 mb-2">ส่งคำขอ</button>
-      <button onclick="liff.closeWindow()" class="btn btn-outline-secondary w-100">ยกเลิก</button>
+            <form id="requestForm" class="d-none">
+                <div class="mb-3">
+                    <label class="form-label fw-bold">ชื่อ-นามสกุล</label>
+                    <input type="text" id="userName" class="form-control" readonly>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">ระบุอุปกรณ์ที่ต้องการยืม</label>
+                    <textarea id="itemDetail" class="form-control" rows="3" placeholder="ระบุชื่ออุปกรณ์ และรหัส (ถ้าทราบ)"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">เหตุผลการยืม</label>
+                    <input type="text" id="reason" class="form-control" placeholder="เช่น ทำโครงงาน, กิจกรรมภาควิชา">
+                </div>
+                <button type="button" onclick="submitRequest()" class="btn btn-purple">ส่งคำขออนุมัติ</button>
+            </form>
+        </div>
     </div>
-  </div>
 
-  <script>
-    // ดึงค่าจาก config.js (ห้ามใส่เครื่องหมายคำพูดครอบ)
-    const liffId = CONFIG.LIFF_ID; 
-    const GAS_URL = CONFIG.API_ENDPOINT; 
-    let lineId = "";
-    let currentUser = null;
+    <script>
+        // --- ฝังค่าจริง (Hardcoded) ---
+        const LIFF_ID = "2009184396-t5vJHbvQ"; 
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbwgsV2B-36BDdsiKjFtgHYH_ZVyahwelzJCVi2QiLr7VrzaAZa8TpQGJU7yW3IoD_tPHQ/exec";
 
-    async function callGAS(action, data = {}) {
-      const response = await fetch(GAS_URL, { 
-        method: "POST", 
-        body: JSON.stringify({ action, email: lineId, ...data }) 
-      });
-      return response.json();
-    }
+        let userProfile = {};
 
-    async function initPage() {
-      Swal.fire({ title: 'กำลังโหลดข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-      try {
-        await liff.init({ liffId });
-        if (!liff.isLoggedIn()) { liff.login(); return; }
-        const profile = await liff.getProfile();
-        lineId = profile.userId;
-
-        const user = await callGAS("getUserData");
-        Swal.close();
-        
-        if (user) {
-          currentUser = user;
-          document.getElementById('dispName').textContent = user.name;
-          document.getElementById('dispPhone').textContent = "📞 " + user.phone;
-          document.getElementById('dispRole').textContent = "บทบาท: " + user.role;
-          document.getElementById('userProfile').classList.remove('d-none');
-        } else {
-          Swal.fire('ไม่พบข้อมูลผู้ใช้', 'กรุณาลงทะเบียนที่หน้าหลักก่อน', 'warning').then(() => liff.closeWindow());
+        async function init() {
+            try {
+                await liff.init({ liffId: LIFF_ID });
+                if (!liff.isLoggedIn()) {
+                    liff.login();
+                } else {
+                    const profile = await liff.getProfile();
+                    userProfile = profile;
+                    
+                    // ดึงชื่อจาก GAS มาโชว์
+                    const response = await fetch(GAS_URL, {
+                        method: "POST",
+                        body: JSON.stringify({ action: "getUserData", email: profile.userId })
+                    });
+                    const userData = await response.json();
+                    
+                    if (userData) {
+                        document.getElementById('userName').value = userData.name;
+                        document.getElementById('loading').classList.add('d-none');
+                        document.getElementById('requestForm').classList.remove('d-none');
+                    } else {
+                        Swal.fire("ไม่พบข้อมูล", "กรุณาลงทะเบียนผ่านหน้าหลักก่อน", "warning").then(() => {
+                            liff.closeWindow();
+                        });
+                    }
+                }
+            } catch (err) {
+                console.error(err);
+                Swal.fire("Error", "เกิดข้อผิดพลาดในการโหลดข้อมูล", "error");
+            }
         }
-      } catch (err) { 
-        Swal.close(); 
-        Swal.fire('Error', 'ไม่สามารถเชื่อมต่อระบบได้: ' + err.message, 'error'); 
-      }
-    }
 
-    async function submitRequest() {
-      if (!currentUser) return;
-      const room = document.getElementById('requestRoom').value;
-      const retDate = document.getElementById('returnDate').value;
-      const note = document.getElementById('requestNote').value.trim();
+        async function submitRequest() {
+            const detail = document.getElementById('itemDetail').value;
+            const reason = document.getElementById('reason').value;
 
-      if (!room || !retDate) return Swal.fire('กรุณากรอกข้อมูลให้ครบ', 'ต้องระบุห้องและวันที่คืน', 'warning');
+            if (!detail || !reason) {
+                Swal.fire("เตือน", "กรุณากรอกข้อมูลให้ครบถ้วน", "warning");
+                return;
+            }
 
-      Swal.fire({ title: 'กำลังส่งคำขอ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            Swal.fire({ title: 'กำลังส่งคำขอ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
-      try {
-        const res = await callGAS("processAction", { 
-          obj: { 
-            id: "OT", 
-            name: currentUser.name, 
-            phone: currentUser.phone, 
-            role: currentUser.role, 
-            room: room, 
-            returnDate: retDate, 
-            note: note, 
-            action: "ยืมนอกเวลา" 
-          } 
-        });
+            try {
+                const response = await fetch(GAS_URL, {
+                    method: "POST",
+                    body: JSON.stringify({
+                        action: "requestOT",
+                        email: userProfile.userId,
+                        detail: detail,
+                        reason: reason
+                    })
+                });
+                const result = await response.json();
 
-        Swal.close();
-        if (res === "OK") {
-          Swal.fire('สำเร็จ', 'ส่งคำขอเรียบร้อยแล้ว', 'success').then(() => liff.closeWindow());
-        } else {
-          Swal.fire('ผิดพลาด', 'ไม่สามารถส่งคำขอได้ในขณะนี้', 'error');
+                if (result.status === "SUCCESS") {
+                    Swal.fire("สำเร็จ!", "ส่งคำขอเรียบร้อยแล้ว โปรดรอการอนุมัติ", "success").then(() => {
+                        liff.closeWindow();
+                    });
+                } else {
+                    throw new Error(result.message);
+                }
+            } catch (err) {
+                Swal.fire("ผิดพลาด", "ไม่สามารถส่งคำขอได้: " + err.message, "error");
+            }
         }
-      } catch (e) {
-        Swal.fire('Error', 'เกิดข้อผิดพลาดในการส่งข้อมูล', 'error');
-      }
-    }
-  </script>
+
+        document.addEventListener("DOMContentLoaded", init);
+    </script>
 </body>
 </html>
