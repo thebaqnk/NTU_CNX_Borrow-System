@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>เช็คอินสำเร็จ</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-  <script src="config.js"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap');
     
@@ -32,6 +32,7 @@
       text-decoration: none; display: inline-block;
       cursor: pointer;
     }
+    .btn-close-ui:active { transform: scale(0.95); }
   </style>
 </head>
 <body>
@@ -48,15 +49,21 @@
   </div>
 
   <script>
-    // เริ่มทำงาน LIFF เพื่อให้หน้าเว็บรองรับฟีเจอร์ของ LINE
+    // --- ฝังค่าจริง (Hardcoded) ---
+    const LIFF_ID = "2009184396-t5vJHbvQ"; 
+
     async function initLiff() {
       try {
-        await liff.init({ liffId: CONFIG.LIFF_ID }); 
+        // เริ่มทำงาน LIFF โดยใช้ ID ที่ฝังไว้
+        await liff.init({ liffId: LIFF_ID });
+        
+        // ถ้าต้องการให้ปุ่มกดแล้วปิดหน้าต่างเดิมด้วย สามารถปรับแต่ง Logic ได้ที่นี่
       } catch (err) {
         console.error("LIFF Init Error", err);
       }
     }
-    initLiff();
+    
+    document.addEventListener("DOMContentLoaded", initLiff);
   </script>
 </body>
 </html>
