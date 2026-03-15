@@ -52,8 +52,8 @@
   </div>
 
 <script>
-  const GAS_URL = "GAS_URL_PLACEHOLDER";
-  const LIFF_ID = "LIFF_ID_PLACEHOLDER";
+  const GAS_URL = "GAS_WEB_APP_URL_HERE"; 
+  const LIFF_ID = "LIFF_ID_HERE";
   
   let sys = { 
     id: new URLSearchParams(window.location.search).get('id') || "", 
@@ -62,8 +62,16 @@
   };
 
   async function callGAS(action, data = {}) {
-    const response = await fetch(GAS_URL, { method: "POST", body: JSON.stringify({ action, email: sys.email, ...data }) });
-    return response.json();
+    try {
+      const response = await fetch(GAS_URL, { 
+        method: "POST", 
+        body: JSON.stringify({ action, email: sys.email, ...data }) 
+      });
+      return await response.json();
+    } catch (err) {
+      console.error("GAS Error:", err);
+      return null;
+    }
   }
 
   async function init() {
@@ -73,9 +81,7 @@
       const profile = await liff.getProfile();
       sys.email = profile.userId;
 
-      // จัดการหน้าย่อยผ่าน mode (รองรับ 4 หน้าเพิ่มเติม)
       if (sys.mode === "history") { renderHistory(); return; } 
-      // คุณสามารถเพิ่ม if(sys.mode === 'other') เพื่อเปิดหน้าอื่นๆ ได้ที่นี่
 
       const [info, user, verified] = await Promise.all([
         callGAS("getInventoryData", { id: sys.id }),
@@ -84,7 +90,9 @@
       ]);
 
       renderMain(info, user, verified);
-    } catch (e) { Swal.fire("Error", "โหลดข้อมูลไม่สำเร็จ", "error"); }
+    } catch (e) { 
+        Swal.fire("Error", "โหลดข้อมูลไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่อ", "error"); 
+    }
   }
 
   function renderMain(info, user, verified) {
@@ -122,26 +130,51 @@
   }
 
   async function doVerify() {
-    Swal.fire({ title: 'บันทึก...', didOpen: () => Swal.showLoading() });
-    await callGAS("recordVerify", { id: sys.id });
-    Swal.fire('สำเร็จ', 'เช็คอินแล้ว', 'success').then(() => location.reload());
+    Swal.fire({ title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading() });
+    const res = await callGAS("recordVerify", { id: sys.id });
+    if(res === "SUCCESS") {
+        window.location.href = "VerifySuccess.html"; // ไปหน้าเช็คอินสำเร็จ
+    } else {
+        Swal.fire('ผิดพลาด', 'ไม่สามารถบันทึกได้', 'error');
+    }
   }
 
   async function doAction(act) {
     Swal.fire({ title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading() });
     const user = await callGAS("getUserData");
-    await callGAS("processAction", { obj: { id: sys.id, action: act, name: user.name, phone: user.phone, role: user.role } });
-    Swal.fire('สำเร็จ', 'บันทึกแล้ว', 'success').then(() => liff.closeWindow());
+    const res = await callGAS("processAction", { obj: { id: sys.id, action: act, name: user.name, phone: user.phone, role: user.role } });
+    
+    if(res === "OK") {
+        if (act === "ยืมอุปกรณ์") {
+            window.location.href = "BorrowSuccess.html"; // ไปหน้ายืมสำเร็จ
+        } else {
+            window.location.href = "ReturnSuccess.html"; // ไปหน้าคืนสำเร็จ
+        }
+    } else {
+        Swal.fire('ผิดพลาด', 'บันทึกไม่สำเร็จ', 'error');
+    }
   }
 
   async function saveUser() {
-    const data = { name: document.getElementById('uName').value, phone: document.getElementById('uPhone').value, role: document.getElementById('uRole').value };
-    await callGAS("saveUserData", { data });
-    location.reload();
+    const data = { 
+        name: document.getElementById('uName').value, 
+        phone: document.getElementById('uPhone').value, 
+        role: document.getElementById('uRole').value 
+    };
+    if(!data.name || !data.phone) { Swal.fire('เตือน', 'กรุณากรอกข้อมูลให้ครบ', 'warning'); return; }
+    
+    Swal.fire({ title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading() });
+    const res = await callGAS("saveUserData", { data });
+    if(res === "SUCCESS") {
+        location.reload(); 
+    } else {
+        Swal.fire('ผิดพลาด', 'ลงทะเบียนไม่สำเร็จ', 'error');
+    }
   }
 
   function showForm() {
     document.getElementById('profileBox').classList.add('d-none');
+    document.getElementById('actionArea').classList.add('d-none');
     document.getElementById('regForm').classList.remove('d-none');
   }
 
