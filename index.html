@@ -54,12 +54,12 @@
       </div>
 
       <div id="actionArea" class="d-none"></div>
-      <div class="version-text" id="versionDisp">v1.3.0 (Fixed Link)</div>
+      <div class="version-text" id="versionDisp">v1.3.1 (Fixed Response Handling)</div>
     </div>
   </div>
 
 <script>
-  // --- ใส่ค่าจริงตรงนี้ (Hardcoded) ---
+  // --- CONFIGURATION ---
   const LIFF_ID = "2009184396-t5vJHbvQ"; 
   const GAS_URL = "https://script.google.com/macros/s/AKfycbwgsV2B-36BDdsiKjFtgHYH_ZVyahwelzJCVi2QiLr7VrzaAZa8TpQGJU7yW3IoD_tPHQ/exec";
 
@@ -85,35 +85,21 @@
   async function init() {
     const statusText = document.getElementById('statusText');
     try {
-      // 1. เริ่มต้น LIFF SDK (ใช้ค่าจริงที่ใส่ไว้ด้านบน)
       await liff.init({ liffId: LIFF_ID });
-
-      // 2. ตรวจสอบการ Login
       if (!liff.isLoggedIn()) { 
         liff.login(); 
         return; 
       }
-
-      // 3. ดึงข้อมูลโปรไฟล์
       const profile = await liff.getProfile();
       sys.email = profile.userId;
 
-      if (sys.mode === "history") { 
-        // ฟังก์ชันประวัติ (ถ้ามี)
-        return; 
-      } 
-
-      // 4. ดึงข้อมูลจาก Google Sheets
       const [info, user, verified] = await Promise.all([
         callGAS("getInventoryData", { id: sys.id }),
         callGAS("getUserData"),
         callGAS("checkVerifyStatus")
       ]);
 
-      if (!info) {
-        throw new Error("ไม่พบข้อมูลอุปกรณ์หรือจุดคืน");
-      }
-
+      if (!info) throw new Error("ไม่พบข้อมูลอุปกรณ์หรือจุดคืน");
       renderMain(info, user, verified);
 
     } catch (e) { 
@@ -159,22 +145,27 @@
   async function doVerify() {
     Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
     const res = await callGAS("recordVerify", { id: sys.id });
-    if(res === "SUCCESS") {
+    
+    // แก้ไข: เช็คสถานะจาก Object
+    if(res && res.status === "SUCCESS") {
         window.location.href = "VerifySuccess.html";
     } else {
-        Swal.fire('ผิดพลาด', 'ไม่สามารถบันทึกได้', 'error');
+        Swal.fire('ผิดพลาด', res ? res.message : 'ไม่สามารถบันทึกได้', 'error');
     }
   }
 
   async function doAction(act) {
     Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
     const user = await callGAS("getUserData");
-    const res = await callGAS("processAction", { obj: { id: sys.id, action: act, name: user.name, phone: user.phone, role: user.role } });
+    const res = await callGAS("processAction", { 
+      obj: { id: sys.id, action: act, name: user.name, phone: user.phone, role: user.role } 
+    });
     
-    if(res === "OK") {
+    // แก้ไข: เช็คสถานะจาก Object
+    if(res && res.status === "SUCCESS") {
         window.location.href = (act === "ยืมอุปกรณ์") ? "BorrowSuccess.html" : "ReturnSuccess.html";
     } else {
-        Swal.fire('ผิดพลาด', 'บันทึกไม่สำเร็จ', 'error');
+        Swal.fire('ผิดพลาด', res ? res.message : 'บันทึกไม่สำเร็จ', 'error');
     }
   }
 
@@ -188,7 +179,9 @@
     
     Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
     const res = await callGAS("saveUserData", { data });
-    if(res === "SUCCESS") {
+    
+    // แก้ไข: เช็คสถานะจาก Object
+    if(res && res.status === "SUCCESS") {
         location.reload(); 
     } else {
         Swal.fire('ผิดพลาด', 'ลงทะเบียนไม่สำเร็จ', 'error');
