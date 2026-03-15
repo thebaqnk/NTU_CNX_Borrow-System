@@ -1,4 +1,5 @@
 const CONFIG = {
-  LIFF_ID: "LIFF_ID",
-  API_ENDPOINT: "GAS_API"
+  LIFF_ID: "MY_LIFF_ID",
+  API_ENDPOINT: "MY_GAS_API",
+  VERSION: "1.2.5"
 };
