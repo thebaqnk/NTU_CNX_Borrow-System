@@ -7,7 +7,6 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-  <script src="config.js"></script>
 
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap');
@@ -55,14 +54,14 @@
       </div>
 
       <div id="actionArea" class="d-none"></div>
-      <div class="version-text" id="versionDisp"></div>
+      <div class="version-text" id="versionDisp">v1.3.0 (Fixed Link)</div>
     </div>
   </div>
 
 <script>
-  // ดึงค่าจาก Config (ใส่ fallback กันพัง)
-  const GAS_URL = (typeof CONFIG !== 'undefined') ? CONFIG.API_ENDPOINT : ""; 
-  const LIFF_ID = (typeof CONFIG !== 'undefined') ? CONFIG.LIFF_ID : "";  
+  // --- ใส่ค่าจริงตรงนี้ (Hardcoded) ---
+  const LIFF_ID = "2009184396-t5vJHbvQ"; 
+  const GAS_URL = "https://script.google.com/macros/s/AKfycbwgsV2B-36BDdsiKjFtgHYH_ZVyahwelzJCVi2QiLr7VrzaAZa8TpQGJU7yW3IoD_tPHQ/exec";
 
   let sys = { 
     id: new URLSearchParams(window.location.search).get('id') || "", 
@@ -72,10 +71,6 @@
 
   async function callGAS(action, data = {}) {
     try {
-      // ตรวจสอบว่า URL ของ GAS ถูกต้องไหม
-      if (!GAS_URL || GAS_URL.includes("process.env")) {
-        throw new Error("API Endpoint ไม่ถูกต้อง (Config Error)");
-      }
       const response = await fetch(GAS_URL, { 
         method: "POST", 
         body: JSON.stringify({ action, email: sys.email, ...data }) 
@@ -90,30 +85,25 @@
   async function init() {
     const statusText = document.getElementById('statusText');
     try {
-      // 1. ตรวจสอบ Config ก่อนเริ่ม
-      if (typeof CONFIG === 'undefined' || !LIFF_ID || LIFF_ID.includes("process.env")) {
-        statusText.innerHTML = "<span class='text-danger'>❌ ระบบยังไม่ได้ตั้งค่า LIFF ID<br><small>กรุณาตรวจสอบ Vercel Environment Variables</small></span>";
-        return;
-      }
-
-      if(CONFIG.VERSION) document.getElementById('versionDisp').innerText = "v" + CONFIG.VERSION;
-
-      // 2. เริ่มต้น LIFF SDK
+      // 1. เริ่มต้น LIFF SDK (ใช้ค่าจริงที่ใส่ไว้ด้านบน)
       await liff.init({ liffId: LIFF_ID });
 
-      // 3. ตรวจสอบการ Login (จุดที่ระบบจะพาไปหน้า Login อัตโนมัติ)
+      // 2. ตรวจสอบการ Login
       if (!liff.isLoggedIn()) { 
         liff.login(); 
         return; 
       }
 
-      // 4. ดึงข้อมูลโปรไฟล์หลัง Login สำเร็จ
+      // 3. ดึงข้อมูลโปรไฟล์
       const profile = await liff.getProfile();
       sys.email = profile.userId;
 
-      if (sys.mode === "history") { renderHistory(); return; } 
+      if (sys.mode === "history") { 
+        // ฟังก์ชันประวัติ (ถ้ามี)
+        return; 
+      } 
 
-      // 5. ดึงข้อมูลจาก Google Sheets
+      // 4. ดึงข้อมูลจาก Google Sheets
       const [info, user, verified] = await Promise.all([
         callGAS("getInventoryData", { id: sys.id }),
         callGAS("getUserData"),
@@ -121,7 +111,7 @@
       ]);
 
       if (!info) {
-        throw new Error("ไม่สามารถเชื่อมต่อฐานข้อมูล Google Sheets ได้");
+        throw new Error("ไม่พบข้อมูลอุปกรณ์หรือจุดคืน");
       }
 
       renderMain(info, user, verified);
@@ -129,7 +119,6 @@
     } catch (e) { 
         console.error("Init error:", e);
         statusText.innerHTML = `<span class='text-danger'>ขออภัย เกิดข้อผิดพลาด<br><small>${e.message}</small></span>`;
-        Swal.fire("Error", e.message, "error"); 
     }
   }
 
