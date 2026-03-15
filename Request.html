@@ -9,114 +9,141 @@
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap');
-        body { background-color: #f8f7ff; font-family: 'Sarabun', sans-serif; padding: 20px; }
-        .card { border-radius: 20px; border: none; box-shadow: 0 10px 20px rgba(157, 133, 225, 0.1); }
-        .btn-purple { background-color: #9d85e1; color: white; border-radius: 12px; padding: 12px; font-weight: bold; border: none; width: 100%; }
-        .btn-purple:hover { background-color: #7a61c5; color: white; }
+        body { background-color: #f0f2f5; font-family: 'Sarabun', sans-serif; padding: 15px; }
+        .card { border-radius: 20px; border: none; box-shadow: 0 8px 30px rgba(0,0,0,0.1); overflow: hidden; }
+        .header-banner { background: linear-gradient(135deg, #7a61c5, #9d85e1); color: white; padding: 25px; text-align: center; }
+        .btn-purple { background-color: #7a61c5; color: white; border-radius: 12px; padding: 12px; font-weight: bold; border: none; width: 100%; }
+        .info-box { background: #fff9db; border-left: 5px solid #fcc419; padding: 15px; border-radius: 8px; font-size: 0.85rem; color: #664d03; margin-bottom: 20px; }
+        .highlight { color: #e67e22; font-weight: bold; }
     </style>
 </head>
 <body>
     <div class="container d-flex justify-content-center">
-        <div class="card p-4 w-100" style="max-width: 450px;">
-            <h4 class="fw-bold text-center mb-4" style="color: #7a61c5;">📝 ขอยืมอุปกรณ์นอกเวลา</h4>
-            
-            <div id="loading" class="text-center">
-                <div class="spinner-border text-primary" role="status"></div>
-                <p class="mt-2">กำลังโหลดข้อมูลโปรไฟล์...</p>
+        <div class="card w-100" style="max-width: 450px;">
+            <div class="header-banner">
+                <h4 class="fw-bold mb-0">📝 ขอยืมอุปกรณ์นอกเวลา</h4>
             </div>
+            <div class="p-4">
+                <div class="info-box">
+                    <strong>📢 กฎการยืมนอกเวลา:</strong><br>
+                    • <span class="highlight">รับอุปกรณ์เวลา 16:00-16:30 น.</span> ของวันก่อนเข้าใช้งาน<br>
+                    • หลังใช้งาน: ให้เก็บไว้ในห้องบรรยาย เจ้าหน้าที่จะตามไปรับเอง
+                </div>
 
-            <form id="requestForm" class="d-none">
-                <div class="mb-3">
-                    <label class="form-label fw-bold">ชื่อ-นามสกุล</label>
-                    <input type="text" id="userName" class="form-control" readonly>
+                <div id="loading" class="text-center">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <p class="mt-2">กำลังโหลดข้อมูล...</p>
                 </div>
-                <div class="mb-3">
-                    <label class="form-label fw-bold">ระบุอุปกรณ์ที่ต้องการยืม</label>
-                    <textarea id="itemDetail" class="form-control" rows="3" placeholder="ระบุชื่ออุปกรณ์ และรหัส (ถ้าทราบ)"></textarea>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label fw-bold">เหตุผลการยืม</label>
-                    <input type="text" id="reason" class="form-control" placeholder="เช่น ทำโครงงาน, กิจกรรมภาควิชา">
-                </div>
-                <button type="button" onclick="submitRequest()" class="btn btn-purple">ส่งคำขออนุมัติ</button>
-            </form>
+
+                <form id="requestForm" class="d-none">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">ชื่อ-นามสกุล</label>
+                        <input type="text" id="userName" class="form-control bg-light" readonly>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <label class="form-label fw-bold">เลือกชั้น</label>
+                            <select id="floor" class="form-select" onchange="updateItems()">
+                                <option value="">-- ชั้น --</option>
+                                <option value="1">ชั้น 1</option>
+                                <option value="2">ชั้น 2</option>
+                            </select>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label class="form-label fw-bold">เลือกห้องบรรยาย</label>
+                            <select id="itemId" class="form-select">
+                                <option value="">-- เลือกชั้นก่อน --</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">วันและเวลาที่จะเข้าใช้งาน</label>
+                        <input type="datetime-local" id="usageTime" class="form-control">
+                    </div>
+
+                    <button type="button" onclick="submitRequest()" class="btn btn-purple mt-3">ส่งคำขออนุมัติ</button>
+                </form>
+            </div>
         </div>
     </div>
 
     <script>
-        // --- ฝังค่าจริง (Hardcoded) ---
         const LIFF_ID = "2009184396-t5vJHbvQ"; 
         const GAS_URL = "https://script.google.com/macros/s/AKfycbwgsV2B-36BDdsiKjFtgHYH_ZVyahwelzJCVi2QiLr7VrzaAZa8TpQGJU7yW3IoD_tPHQ/exec";
+        let userLineId = "";
 
-        let userProfile = {};
+        // ข้อมูลอ้างอิงตามรูป Screenshot (ID, ชั้น, ห้อง)
+        const inventoryData = [
+            { id: "F1-R1", floor: "1", room: "บรรยาย 1" },
+            { id: "F1-R2", floor: "1", room: "บรรยาย 2" },
+            { id: "F1-R3", floor: "1", room: "บรรยาย 3" },
+            { id: "F2-R1", floor: "2", room: "บรรยาย 1" },
+            { id: "F2-R2", floor: "2", room: "บรรยาย 2" },
+            { id: "F2-R3", floor: "2", room: "บรรยาย 3" },
+            { id: "F2-R4", floor: "2", room: "บรรยาย 4" }
+        ];
+
+        function updateItems() {
+            const floor = document.getElementById('floor').value;
+            const itemSelect = document.getElementById('itemId');
+            itemSelect.innerHTML = '<option value="">-- เลือกห้อง --</option>';
+            
+            inventoryData.filter(item => item.floor === floor).forEach(item => {
+                let opt = document.createElement('option');
+                opt.value = item.id;
+                opt.innerHTML = `${item.id} (${item.room})`;
+                itemSelect.appendChild(opt);
+            });
+        }
 
         async function init() {
             try {
                 await liff.init({ liffId: LIFF_ID });
-                if (!liff.isLoggedIn()) {
-                    liff.login();
-                } else {
+                if (!liff.isLoggedIn()) { liff.login(); } 
+                else {
                     const profile = await liff.getProfile();
-                    userProfile = profile;
-                    
-                    // ดึงชื่อจาก GAS มาโชว์
-                    const response = await fetch(GAS_URL, {
-                        method: "POST",
-                        body: JSON.stringify({ action: "getUserData", email: profile.userId })
-                    });
-                    const userData = await response.json();
-                    
+                    userLineId = profile.userId;
+                    const res = await fetch(GAS_URL, { method: "POST", body: JSON.stringify({ action: "getUserData", email: userLineId }) });
+                    const userData = await res.json();
                     if (userData) {
                         document.getElementById('userName').value = userData.name;
                         document.getElementById('loading').classList.add('d-none');
                         document.getElementById('requestForm').classList.remove('d-none');
                     } else {
-                        Swal.fire("ไม่พบข้อมูล", "กรุณาลงทะเบียนผ่านหน้าหลักก่อน", "warning").then(() => {
-                            liff.closeWindow();
-                        });
+                        Swal.fire("ไม่พบข้อมูล", "โปรดลงทะเบียนก่อน", "error").then(() => liff.closeWindow());
                     }
                 }
-            } catch (err) {
-                console.error(err);
-                Swal.fire("Error", "เกิดข้อผิดพลาดในการโหลดข้อมูล", "error");
-            }
+            } catch (err) { console.error(err); }
         }
 
         async function submitRequest() {
-            const detail = document.getElementById('itemDetail').value;
-            const reason = document.getElementById('reason').value;
-
-            if (!detail || !reason) {
-                Swal.fire("เตือน", "กรุณากรอกข้อมูลให้ครบถ้วน", "warning");
-                return;
-            }
+            const itemId = document.getElementById('itemId').value;
+            const time = document.getElementById('usageTime').value;
+            if (!itemId || !time) { Swal.fire("เตือน", "กรุณาระบุข้อมูลให้ครบ", "warning"); return; }
 
             Swal.fire({ title: 'กำลังส่งคำขอ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
             try {
-                const response = await fetch(GAS_URL, {
+                const res = await fetch(GAS_URL, {
                     method: "POST",
                     body: JSON.stringify({
                         action: "requestOT",
-                        email: userProfile.userId,
-                        detail: detail,
-                        reason: reason
+                        email: userLineId,
+                        data: { 
+                            name: document.getElementById('userName').value, 
+                            itemId: itemId, 
+                            usageTime: time.replace('T', ' ') 
+                        }
                     })
                 });
-                const result = await response.json();
-
+                const result = await res.json();
                 if (result.status === "SUCCESS") {
-                    Swal.fire("สำเร็จ!", "ส่งคำขอเรียบร้อยแล้ว โปรดรอการอนุมัติ", "success").then(() => {
-                        liff.closeWindow();
-                    });
-                } else {
-                    throw new Error(result.message);
+                    Swal.fire("สำเร็จ!", "กรุณามารับอุปกรณ์ช่วงเวลา 16:00-16:30 น.", "success").then(() => liff.closeWindow());
                 }
-            } catch (err) {
-                Swal.fire("ผิดพลาด", "ไม่สามารถส่งคำขอได้: " + err.message, "error");
-            }
+            } catch (err) { Swal.fire("Error", "เกิดข้อผิดพลาด", "error"); }
         }
-
         document.addEventListener("DOMContentLoaded", init);
     </script>
 </body>
