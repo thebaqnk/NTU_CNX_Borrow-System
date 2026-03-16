@@ -62,7 +62,7 @@
       </div>
 
       <div id="actionArea" class="d-none"></div>
-      <div class="version-text">v1.4.7 (Add Friend Link Included)</div>
+      <div class="version-text">v1.4.9 (Conditional Pop-up for OT Only)</div>
     </div>
   </div>
 
@@ -145,19 +145,7 @@
     Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
     const res = await callGAS("recordVerify", { id: sys.id });
     if(res && res.status === "SUCCESS") { 
-      // เพิ่ม Pop-up ชวนเพิ่มเพื่อนสำหรับจุดเช็คอิน
-      Swal.fire({
-        title: 'เช็คอินสำเร็จ!',
-        text: 'เพิ่มเพื่อนเพื่อรับแจ้งเตือนสถานะอุปกรณ์',
-        icon: 'success',
-        showCancelButton: true,
-        confirmButtonText: '➕ เพิ่มเพื่อน',
-        cancelButtonText: 'ปิด',
-        confirmButtonColor: '#9d85e1'
-      }).then((result) => {
-        if (result.isConfirmed) window.location.href = BOT_LINK;
-        else window.location.href = "VerifySuccess.html";
-      });
+       window.location.href = "VerifySuccess.html"; // เช็คอินจุดคืน ไปหน้าสำเร็จทันที
     }
     else { Swal.fire('ผิดพลาด', 'ไม่สำเร็จ', 'error'); }
   }
@@ -171,22 +159,24 @@
     });
 
     if(res && res.status === "SUCCESS") { 
-      // Pop-up ชวนเพิ่มเพื่อนหลังยืม/คืน
-      Swal.fire({
-        title: 'บันทึกสำเร็จ!',
-        text: 'กรุณาเพิ่มเพื่อนเพื่อรับข้อความยืนยันการอนุมัติ',
-        icon: 'success',
-        showCancelButton: true,
-        confirmButtonText: '➕ เพิ่มเพื่อนตอนนี้',
-        cancelButtonText: 'ข้ามไปหน้าสรุป',
-        confirmButtonColor: '#9d85e1'
-      }).then((result) => {
-        if (result.isConfirmed) {
-          window.location.href = BOT_LINK;
-        } else {
-          window.location.href = (act === "ยืมอุปกรณ์") ? "BorrowSuccess.html" : "ReturnSuccess.html"; 
-        }
-      });
+      // *** จุดสำคัญ: ถ้าเป็นเคส OT เท่านั้น ถึงจะถามให้เพิ่มเพื่อน ***
+      if (res.isOT === true) {
+        Swal.fire({
+          title: 'ส่งคำขอสำเร็จ!',
+          text: 'กรุณาเพิ่มเพื่อนเพื่อรับข้อความแจ้งผลการอนุมัติยืมนอกเวลา',
+          icon: 'info',
+          showCancelButton: true,
+          confirmButtonText: '➕ เพิ่มเพื่อนตอนนี้',
+          cancelButtonText: 'ข้าม',
+          confirmButtonColor: '#9d85e1'
+        }).then((result) => {
+          if (result.isConfirmed) window.location.href = BOT_LINK;
+          else window.location.href = "BorrowSuccess.html";
+        });
+      } else {
+        // ยืม/คืนปกติ วิ่งไปหน้าสำเร็จทันที
+        window.location.href = (act === "ยืมอุปกรณ์") ? "BorrowSuccess.html" : "ReturnSuccess.html"; 
+      }
     } else { 
       Swal.fire('ผิดพลาด', 'ไม่สำเร็จ', 'error'); 
     }
