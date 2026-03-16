@@ -102,26 +102,34 @@ function renderDashboard(items) {
     let statusText = isReserved ? "ถูกจอง (นอกเวลา)" : (isReady ? "ว่าง" : "ถูกยืม");
     let badgeClass = isReserved ? "bg-warning text-dark" : (isReady ? "bg-success" : "bg-danger");
 
-    grid.innerHTML += `
+grid.innerHTML += `
       <div class="col">
         <div class="card status-card ${cardClass}">
           <div class="card-body">
-            <div class="d-flex justify-content-between">
-              <div>
-                <h5 class="fw-bold mb-0">${item.id}</h5>
-                <p class="small text-muted mb-0">${item.floor} | ${item.room}</p>
+            <div class="d-flex justify-content-between align-items-start">
+              <div class="w-100">
+                <h5 class="fw-bold mb-0 text-dark">
+                  <i class="fa-solid fa-location-dot me-1 text-primary" style="font-size: 0.9rem;"></i>
+                  ${item.floor || '-'} | ${item.room || '-'}
+                </h5>
+                
+                <p class="small text-muted mb-0 mt-1">
+                  ID: <span class="fw-bold text-secondary">${item.id}</span>
+                </p>
               </div>
+              
               <i class="fa-solid ${icon} fs-3"></i>
             </div>
+            
             <hr class="my-2 opacity-25">
+            
             <div class="d-flex justify-content-between align-items-center">
                <span class="badge ${badgeClass} badge-status">${statusText}</span>
-               <small class="text-muted" style="font-size: 0.75rem;">${item.status}</small>
+               <small class="text-muted" style="font-size: 0.7rem;">${item.status}</small>
             </div>
           </div>
         </div>
       </div>`;
-  });
 
   document.getElementById('loading').classList.add('d-none');
   document.getElementById('summaryArea').classList.remove('d-none');
