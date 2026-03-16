@@ -19,8 +19,11 @@
     .btn-purple:active { transform: scale(0.98); opacity: 0.9; }
     .profile-box { background: var(--l-purple); border: 1px solid #e1d9ff; padding: 18px; border-radius: 15px; }
     
-    /* --- สไตล์ใหม่สำหรับหน้าโหลดแบบ GIF --- */
-    .loading-gif { width: 120px; height: 120px; margin: 20px auto; display: block; }
+    /* --- สไตล์ใหม่สำหรับหน้าโหลดแบบ Spinner + GIF --- */
+    .spinner { width: 3.5rem; height: 3.5rem; border: 5px solid var(--l-purple); border-top: 5px solid var(--p-purple); border-radius: 50%; animation: spin 1s linear infinite; margin: 20px auto; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    
+    .loading-gif { width: 80px; height: 80px; margin: 10px auto; display: block; } /* ปรับขนาด GIF ให้พอดี */
     
     .d-none { display: none !important; }
     .version-text { font-size: 0.7rem; color: #ccc; text-align: center; margin-top: 15px; }
@@ -29,7 +32,8 @@
 <body>
   <div class="card">
     <div id="loadingScreen" class="text-center">
-      <img src="https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM2FwMzU4YmoxamZqZmZqMzVmamZqMzVmamZqMzVmamZqMzU4ZCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3o72F8t9TDi2xVnx5S/giphy.gif" alt="กำลังโหลด..." class="loading-gif">
+      <div class="spinner"></div> <img src="https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM2FwMzU4YmoxamZqZmZqMzVmamZqMzVmamZqMzVmamZqMzU4ZCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3o72F8t9TDi2xVnx5S/giphy.gif" alt="กำลังโหลด..." class="loading-gif">
+      
       <p id="statusText" class="text-muted fw-bold">ใจเย็นๆ นะวัยรุ่น... กำลังปัดกวาดห้องเก็บของให้น่าใช้...</p>
     </div>
 
@@ -56,7 +60,7 @@
       </div>
 
       <div id="actionArea" class="d-none"></div>
-      <div class="version-text" id="versionDisp">v1.3.2 (Added Loading GIF & Tips)</div>
+      <div class="version-text" id="versionDisp">v1.3.3 (Added GIF below Spinner)</div>
     </div>
   </div>
 
@@ -70,15 +74,6 @@
     mode: new URLSearchParams(window.location.search).get('mode') || "main",
     email: "" 
   };
-
-  // --- ข้อความ Tips สั้นๆ (สลับกันแสดง) ---
-  const loadingTips = [
-    "รู้หรือไม่? สแกนจุดคืน (Return Point) ก่อนเสมอ เพื่อให้ระบบเปิดปุ่มคืนเครื่องให้คุณ",
-    "อย่าลืมตรวจสอบสภาพอุปกรณ์ก่อนส่งคืนทุกครั้งนะ",
-    "การคืนอุปกรณ์ช้ากว่ากำหนดอาจทำให้เพื่อนคนอื่นใช้งานไม่ได้นะ",
-    "เตรียมเบอร์โทรศัพท์ไว้ให้พร้อมสำหรับการลงทะเบียนครั้งแรก",
-    "หากพบปัญหาการใช้งาน ติดต่อเจ้าหน้าที่ได้ทันที"
-  ];
 
   async function callGAS(action, data = {}) {
     try {
@@ -95,9 +90,6 @@
 
   async function init() {
     const statusText = document.getElementById('statusText');
-    // สุ่มเลือกข้อความ Tips มาแสดง
-    statusText.innerText = "ใจเย็นๆ นะวัยรุ่น... " + loadingTips[Math.floor(Math.random() * loadingTips.length)];
-
     try {
       await liff.init({ liffId: LIFF_ID });
       if (!liff.isLoggedIn()) { 
@@ -148,7 +140,7 @@
       } else {
         if (info.status && info.status.includes("ยืม")) {
           actionHtml = verified 
-            ? `<button onclick="doAction('คืนอุปกรณ์')" class="btn btn-purple" style="background:#6c5ce7">ยืนยันการคืน</button>`
+            ? `<button onclick="doAction('คืนอุปกรณ์')" class="btn btn-purple" style="background:#6c5ce7">ืนยันการคืน</button>`
             : `<div class="alert alert-danger small text-center mb-0">กรุณาสแกนจุดคืนก่อน</div>`;
         } else {
           actionHtml = `<button onclick="doAction('ยืมอุปกรณ์')" class="btn btn-purple">ยืนยันการยืม</button>`;
