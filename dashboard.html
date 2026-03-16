@@ -79,18 +79,34 @@ function renderDashboard(items) {
   grid.innerHTML = "";
 
   items.forEach(item => {
-    // เช็คค่าจาก item.type (Column F) หรือ item.status (Column D) ตามที่คุณตั้งไว้
-    const isReady = item.type === "ว่าง" || item.status === "พร้อมใช้งาน";
-    const isPending = item.type.includes("รอ");
+    // --- เงื่อนไขการเช็คสถานะ ---
+    const isReserved = item.status.includes("ถูกจอง"); // เช็คจาก Column D ตามที่คุณบอก
+    const isReady = (item.type === "ว่าง" || item.status === "พร้อมใช้งาน") && !isReserved;
     
-    let cardClass = isReady ? "state-ready" : (isPending ? "state-pending" : "state-borrowed");
-    let icon = isReady ? "fa-check-circle text-success" : "fa-user-lock text-danger";
-    let statusText = isReady ? "ว่าง" : (isPending ? "รออนุมัติ" : "ถูกยืม");
-    let badgeClass = isReady ? "bg-success" : (isPending ? "bg-warning" : "bg-danger");
+    let cardClass = "";
+    let icon = "";
+    let statusText = "";
+    let badgeClass = "";
 
-    if (isReady) summary.ready++;
-    else if (isPending) summary.pending++;
-    else summary.borrowed++;
+    if (isReserved) {
+      cardClass = "state-pending";
+      icon = "fa-clock text-warning";
+      statusText = "ถูกจอง (นอกเวลา)";
+      badgeClass = "bg-warning text-dark";
+      summary.pending++;
+    } else if (isReady) {
+      cardClass = "state-ready";
+      icon = "fa-check-circle text-success";
+      statusText = "ว่าง";
+      badgeClass = "bg-success text-white";
+      summary.ready++;
+    } else {
+      cardClass = "state-borrowed";
+      icon = "fa-user-lock text-danger";
+      statusText = "ถูกยืม";
+      badgeClass = "bg-danger text-white";
+      summary.borrowed++;
+    }
 
     grid.innerHTML += `
       <div class="col">
@@ -104,14 +120,20 @@ function renderDashboard(items) {
               <i class="fa-solid ${icon} fs-3"></i>
             </div>
             <hr class="my-2 opacity-25">
-            <span class="badge ${badgeClass} badge-status">${statusText}</span>
+            <div class="d-flex justify-content-between align-items-center">
+               <span class="badge ${badgeClass} badge-status">${statusText}</span>
+               <small class="text-muted" style="font-size: 0.7rem;">${item.status}</small>
+            </div>
           </div>
         </div>
       </div>`;
   });
 
+  // อัปเดตตัวเลขสรุป (เพิ่มช่องรออนุมัติ/จอง เข้าไปด้วยถ้ามี)
   document.getElementById('countReady').innerText = summary.ready;
+  document.getElementById('countPending').innerText = summary.pending;
   document.getElementById('countBorrowed').innerText = summary.borrowed;
+  
   document.getElementById('loading').classList.add('d-none');
   document.getElementById('summaryArea').classList.remove('d-none');
 }
