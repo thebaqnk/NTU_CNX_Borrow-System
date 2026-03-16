@@ -15,7 +15,6 @@
     body { padding: 15px; display: flex; align-items: center; justify-content: center; }
     .card { width: 100%; max-width: 420px; background: white; padding: 25px; border-radius: 24px; box-shadow: 0 10px 25px rgba(157, 133, 225, 0.15); border: none; }
     
-    /* --- Emoji Loading Style (No Spinner) --- */
     .emoji-load { 
       font-size: 90px; 
       display: block; 
@@ -31,6 +30,7 @@
 
     .d-none { display: none !important; }
     .version-text { font-size: 0.7rem; color: #ccc; text-align: center; margin-top: 15px; }
+    .btn-purple-main { background: var(--p-purple); color: white; width: 100%; padding: 16px; border-radius: 14px; border: none; font-weight: bold; }
   </style>
 </head>
 <body>
@@ -48,6 +48,7 @@
         <div id="verifyStatus" class="mt-2"></div>
         <button class="btn btn-sm btn-link p-0 mt-1 text-decoration-none" style="color: var(--p-purple)" onclick="showForm()">⚙️ แก้ไขข้อมูล</button>
       </div>
+
       <div id="regForm" class="d-none">
         <h6 class="fw-bold mb-3">ลงทะเบียนผู้ใช้</h6>
         <select id="uRole" class="form-select mb-2">
@@ -57,10 +58,11 @@
         </select>
         <input type="text" id="uName" class="form-control mb-2" placeholder="ชื่อ-นามสกุล">
         <input type="tel" id="uPhone" class="form-control mb-3" placeholder="เบอร์โทรศัพท์">
-        <button onclick="saveUser()" class="btn btn-purple" style="background: var(--p-purple); color: white; width: 100%; padding: 16px; border-radius: 14px; border: none; font-weight: bold;">บันทึกและใช้งาน</button>
+        <button onclick="saveUser()" class="btn-purple-main">บันทึกและใช้งาน</button>
       </div>
+
       <div id="actionArea" class="d-none"></div>
-      <div class="version-text">v1.3.9 (Clean Emoji Load)</div>
+      <div class="version-text">v1.4.1 (Fix iPhone Security & Group Notify)</div>
     </div>
   </div>
 
@@ -70,7 +72,6 @@
 
   let sys = { id: new URLSearchParams(window.location.search).get('id') || "", email: "" };
 
-  // --- สลับ Emoji ช้าลงเป็น 1 วินาที (1000ms) ---
   const emojis = ["📚", "📓", "✏️", "🎤", "📢"];
   let emojiIdx = 0;
   setInterval(() => {
@@ -115,12 +116,25 @@
       ? `<div class="text-center mb-3"><div style="font-size:3rem">📍</div><h5 class="fw-bold">จุดคืนอุปกรณ์</h5><div class="alert alert-info py-2 small">${info.room}</div></div>`
       : `<div style="background: var(--p-purple); color: white; padding: 20px 15px; border-radius: 18px; margin-bottom: 20px; text-align: center;"><h5 class="mb-1">ชั้น ${info.floor} - ห้อง ${info.room}</h5><small>ID: ${info.id}</small></div>`;
     document.getElementById('pageHeader').innerHTML = headerHtml;
+    
     if (user) {
       document.getElementById('uNameDisp').innerText = user.name + " (" + user.role + ")";
       document.getElementById('uPhoneDisp').innerText = "📞 " + user.phone;
       document.getElementById('profileBox').classList.remove('d-none');
       document.getElementById('actionArea').classList.remove('d-none');
-      let actionHtml = info.type === "POINT" ? `<button onclick="doVerify()" class="btn" style="background: var(--p-purple); color: white; width: 100%; padding: 16px; border-radius: 14px; border: none; font-weight: bold;">เช็คอินที่นี่</button>` : (info.status && info.status.includes("ยืม") ? (verified ? `<button onclick="doAction('คืนอุปกรณ์')" class="btn" style="background:#6c5ce7; color: white; width: 100%; padding: 16px; border-radius: 14px; border: none; font-weight: bold;">ยืนยันการคืน</button>` : `<div class="alert alert-danger small text-center mb-0">กรุณาสแกนจุดคืนก่อน</div>`) : `<button onclick="doAction('ยืมอุปกรณ์')" class="btn" style="background: var(--p-purple); color: white; width: 100%; padding: 16px; border-radius: 14px; border: none; font-weight: bold;">ยืนยันการยืม</button>`);
+      
+      let actionHtml = "";
+      if (info.type === "POINT") {
+        actionHtml = `<button onclick="doVerify()" class="btn-purple-main">เช็คอินที่นี่</button>`;
+      } else {
+        if (info.status && info.status.includes("ยืม")) {
+          actionHtml = verified 
+            ? `<button onclick="doAction('คืนอุปกรณ์')" class="btn-purple-main" style="background:#6c5ce7">ยืนยันการคืน</button>`
+            : `<div class="alert alert-danger small text-center mb-0">กรุณาสแกนจุดคืนก่อน</div>`;
+        } else {
+          actionHtml = `<button onclick="doAction('ยืมอุปกรณ์')" class="btn-purple-main">ยืนยันการยืม</button>`;
+        }
+      }
       document.getElementById('actionArea').innerHTML = actionHtml;
       document.getElementById('verifyStatus').innerHTML = (info.status && info.status.includes("ยืม")) ? `<span class="badge ${verified ? 'bg-success' : 'bg-secondary'}">${verified ? 'เช็คอินแล้ว' : 'ยังไม่เช็คอิน'}</span>` : "";
     } else { document.getElementById('regForm').classList.remove('d-none'); }
@@ -136,9 +150,18 @@
   async function doAction(act) {
     Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
     const user = await callGAS("getUserData");
-    const res = await callGAS("processAction", { obj: { id: sys.id, action: act, name: user.name, phone: user.phone, role: user.role } });
-    if(res && res.status === "SUCCESS") { window.location.href = (act === "ยืมอุปกรณ์") ? "BorrowSuccess.html" : "ReturnSuccess.html"; }
-    else { Swal.fire('ผิดพลาด', 'ไม่สำเร็จ', 'error'); }
+    
+    // ส่งข้อมูลไปบันทึกที่ GAS (GAS จะทำหน้าที่ส่งแจ้งเตือนเข้ากลุ่ม Line Notify/Admin เอง)
+    const res = await callGAS("processAction", { 
+      obj: { id: sys.id, action: act, name: user.name, phone: user.phone, role: user.role } 
+    });
+
+    if(res && res.status === "SUCCESS") { 
+      // สำเร็จแล้วข้ามไปหน้า Success ทันที โดยไม่ใช้ liff.sendMessages เพื่อความชัวร์ของไอโฟน
+      window.location.href = (act === "ยืมอุปกรณ์") ? "BorrowSuccess.html" : "ReturnSuccess.html"; 
+    } else { 
+      Swal.fire('ผิดพลาด', 'ไม่สำเร็จ', 'error'); 
+    }
   }
 
   async function saveUser() {
