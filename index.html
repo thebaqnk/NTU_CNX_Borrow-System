@@ -19,8 +19,8 @@
     .btn-purple:active { transform: scale(0.98); opacity: 0.9; }
     .profile-box { background: var(--l-purple); border: 1px solid #e1d9ff; padding: 18px; border-radius: 15px; }
     
-    /* --- สไตล์ใหม่สำหรับหน้าโหลดแบบ GIF ตัวใหญ่ + Spinner --- */
-    .loading-gif { width: 150px; height: 150px; margin: 0 auto 20px auto; display: block; } /* ปรับขนาด GIF ให้ใหญ่และเว้นระยะล่าง */
+    /* --- สไตล์สำหรับหน้าโหลดแบบ GIF ตัวใหญ่ + Spinner --- */
+    .loading-gif { width: 150px; height: 150px; margin: 0 auto 20px auto; display: block; object-fit: contain; } /* ปรับขนาด GIF ให้ใหญ่และเว้นระยะล่าง */
     
     .spinner { width: 3.5rem; height: 3.5rem; border: 5px solid var(--l-purple); border-top: 5px solid var(--p-purple); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px auto; }
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
@@ -32,7 +32,7 @@
 <body>
   <div class="card">
     <div id="loadingScreen" class="text-center">
-      <img src="https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM2FwMzU4YmoxamZqZmZqMzVmamZqMzVmamZqMzVmamZqMzU4ZCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3o72F8t9TDi2xVnx5S/giphy.gif" alt="กำลังโหลด..." class="loading-gif">
+      <img src="https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3FicWlxZ2t4ZDN4ZDN4ZDN4ZDN4ZDN4ZDN4ZDN4ZDN4ZDN4ZDN4ZCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3o72F8t9TDi2xVnx5S/giphy.gif" alt="กำลังโหลด..." class="loading-gif">
       
       <div class="spinner"></div> <p id="statusText" class="text-muted fw-bold">ใจเย็นๆ นะวัยรุ่น... กำลังปัดกวาดห้องเก็บของให้น่าใช้...</p>
     </div>
@@ -60,7 +60,7 @@
       </div>
 
       <div id="actionArea" class="d-none"></div>
-      <div class="version-text" id="versionDisp">v1.3.4 (Big Cat GIF above Spinner)</div>
+      <div class="version-text" id="versionDisp">v1.3.5 (Fixed Cat GIF Link & Big Size)</div>
     </div>
   </div>
 
