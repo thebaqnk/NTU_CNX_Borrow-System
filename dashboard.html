@@ -94,7 +94,6 @@ function renderDashboard(items) {
   grid.innerHTML = "";
 
   items.forEach(item => {
-    // Logic เช็คสถานะจองจาก Column D
     const isReserved = item.status.includes("ถูกจอง");
     const isReady = item.type === "ว่าง" || item.status === "พร้อมใช้งาน";
     
@@ -108,7 +107,10 @@ function renderDashboard(items) {
         <div class="card status-card ${cardClass}">
           <div class="card-body">
             <div class="d-flex justify-content-between">
-              <div><h5 class="fw-bold">${item.id}</h5><p class="small text-muted mb-0">${item.room}</p></div>
+              <div>
+                <h5 class="fw-bold mb-0">${item.id}</h5>
+                <p class="small text-muted mb-0">${item.floor} | ${item.room}</p>
+              </div>
               <i class="fa-solid ${icon} fs-3"></i>
             </div>
             <hr class="my-2 opacity-25">
