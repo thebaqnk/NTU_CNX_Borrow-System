@@ -62,13 +62,14 @@
       </div>
 
       <div id="actionArea" class="d-none"></div>
-      <div class="version-text">v1.4.1 (Fix iPhone Security & Group Notify)</div>
+      <div class="version-text">v1.4.7 (Add Friend Link Included)</div>
     </div>
   </div>
 
 <script>
   const LIFF_ID = "2009184396-t5vJHbvQ"; 
   const GAS_URL = "https://script.google.com/macros/s/AKfycbwgsV2B-36BDdsiKjFtgHYH_ZVyahwelzJCVi2QiLr7VrzaAZa8TpQGJU7yW3IoD_tPHQ/exec";
+  const BOT_LINK = "https://line.me/R/ti/p/@YOUR_BOT_ID"; // <-- เปลี่ยน @YOUR_BOT_ID เป็นไอดีบอทคุณนะครับ
 
   let sys = { id: new URLSearchParams(window.location.search).get('id') || "", email: "" };
 
@@ -143,7 +144,21 @@
   async function doVerify() {
     Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
     const res = await callGAS("recordVerify", { id: sys.id });
-    if(res && res.status === "SUCCESS") { window.location.href = "VerifySuccess.html"; }
+    if(res && res.status === "SUCCESS") { 
+      // เพิ่ม Pop-up ชวนเพิ่มเพื่อนสำหรับจุดเช็คอิน
+      Swal.fire({
+        title: 'เช็คอินสำเร็จ!',
+        text: 'เพิ่มเพื่อนเพื่อรับแจ้งเตือนสถานะอุปกรณ์',
+        icon: 'success',
+        showCancelButton: true,
+        confirmButtonText: '➕ เพิ่มเพื่อน',
+        cancelButtonText: 'ปิด',
+        confirmButtonColor: '#9d85e1'
+      }).then((result) => {
+        if (result.isConfirmed) window.location.href = BOT_LINK;
+        else window.location.href = "VerifySuccess.html";
+      });
+    }
     else { Swal.fire('ผิดพลาด', 'ไม่สำเร็จ', 'error'); }
   }
 
@@ -151,14 +166,27 @@
     Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
     const user = await callGAS("getUserData");
     
-    // ส่งข้อมูลไปบันทึกที่ GAS (GAS จะทำหน้าที่ส่งแจ้งเตือนเข้ากลุ่ม Line Notify/Admin เอง)
     const res = await callGAS("processAction", { 
       obj: { id: sys.id, action: act, name: user.name, phone: user.phone, role: user.role } 
     });
 
     if(res && res.status === "SUCCESS") { 
-      // สำเร็จแล้วข้ามไปหน้า Success ทันที โดยไม่ใช้ liff.sendMessages เพื่อความชัวร์ของไอโฟน
-      window.location.href = (act === "ยืมอุปกรณ์") ? "BorrowSuccess.html" : "ReturnSuccess.html"; 
+      // Pop-up ชวนเพิ่มเพื่อนหลังยืม/คืน
+      Swal.fire({
+        title: 'บันทึกสำเร็จ!',
+        text: 'กรุณาเพิ่มเพื่อนเพื่อรับข้อความยืนยันการอนุมัติ',
+        icon: 'success',
+        showCancelButton: true,
+        confirmButtonText: '➕ เพิ่มเพื่อนตอนนี้',
+        cancelButtonText: 'ข้ามไปหน้าสรุป',
+        confirmButtonColor: '#9d85e1'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          window.location.href = BOT_LINK;
+        } else {
+          window.location.href = (act === "ยืมอุปกรณ์") ? "BorrowSuccess.html" : "ReturnSuccess.html"; 
+        }
+      });
     } else { 
       Swal.fire('ผิดพลาด', 'ไม่สำเร็จ', 'error'); 
     }
