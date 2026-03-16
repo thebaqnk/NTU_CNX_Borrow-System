@@ -18,8 +18,10 @@
     .btn-purple { background: var(--p-purple); color: white; width: 100%; padding: 16px; border-radius: 14px; font-weight: bold; margin-top: 10px; border: none; font-size: 1.1rem; transition: 0.2s; }
     .btn-purple:active { transform: scale(0.98); opacity: 0.9; }
     .profile-box { background: var(--l-purple); border: 1px solid #e1d9ff; padding: 18px; border-radius: 15px; }
-    .spinner { width: 3.5rem; height: 3.5rem; border: 5px solid var(--l-purple); border-top: 5px solid var(--p-purple); border-radius: 50%; animation: spin 1s linear infinite; margin: 20px auto; }
-    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    
+    /* --- สไตล์ใหม่สำหรับหน้าโหลดแบบ GIF --- */
+    .loading-gif { width: 120px; height: 120px; margin: 20px auto; display: block; }
+    
     .d-none { display: none !important; }
     .version-text { font-size: 0.7rem; color: #ccc; text-align: center; margin-top: 15px; }
   </style>
@@ -27,8 +29,8 @@
 <body>
   <div class="card">
     <div id="loadingScreen" class="text-center">
-      <div class="spinner"></div>
-      <p id="statusText" class="text-muted fw-bold">กำลังเชื่อมต่อระบบ...</p>
+      <img src="https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM2FwMzU4YmoxamZqZmZqMzVmamZqMzVmamZqMzVmamZqMzU4ZCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3o72F8t9TDi2xVnx5S/giphy.gif" alt="กำลังโหลด..." class="loading-gif">
+      <p id="statusText" class="text-muted fw-bold">ใจเย็นๆ นะวัยรุ่น... กำลังปัดกวาดห้องเก็บของให้น่าใช้...</p>
     </div>
 
     <div id="contentArea" class="d-none">
@@ -54,7 +56,7 @@
       </div>
 
       <div id="actionArea" class="d-none"></div>
-      <div class="version-text" id="versionDisp">v1.3.1 (Fixed Response Handling)</div>
+      <div class="version-text" id="versionDisp">v1.3.2 (Added Loading GIF & Tips)</div>
     </div>
   </div>
 
@@ -68,6 +70,15 @@
     mode: new URLSearchParams(window.location.search).get('mode') || "main",
     email: "" 
   };
+
+  // --- ข้อความ Tips สั้นๆ (สลับกันแสดง) ---
+  const loadingTips = [
+    "รู้หรือไม่? สแกนจุดคืน (Return Point) ก่อนเสมอ เพื่อให้ระบบเปิดปุ่มคืนเครื่องให้คุณ",
+    "อย่าลืมตรวจสอบสภาพอุปกรณ์ก่อนส่งคืนทุกครั้งนะ",
+    "การคืนอุปกรณ์ช้ากว่ากำหนดอาจทำให้เพื่อนคนอื่นใช้งานไม่ได้นะ",
+    "เตรียมเบอร์โทรศัพท์ไว้ให้พร้อมสำหรับการลงทะเบียนครั้งแรก",
+    "หากพบปัญหาการใช้งาน ติดต่อเจ้าหน้าที่ได้ทันที"
+  ];
 
   async function callGAS(action, data = {}) {
     try {
@@ -84,6 +95,9 @@
 
   async function init() {
     const statusText = document.getElementById('statusText');
+    // สุ่มเลือกข้อความ Tips มาแสดง
+    statusText.innerText = "ใจเย็นๆ นะวัยรุ่น... " + loadingTips[Math.floor(Math.random() * loadingTips.length)];
+
     try {
       await liff.init({ liffId: LIFF_ID });
       if (!liff.isLoggedIn()) { 
@@ -93,6 +107,9 @@
       const profile = await liff.getProfile();
       sys.email = profile.userId;
 
+      // เพิ่มสถานะบอกการทำงาน (Transparency)
+      statusText.innerText = "กำลังตรวจสอบสถานะ Line ID ของคุณ...";
+
       const [info, user, verified] = await Promise.all([
         callGAS("getInventoryData", { id: sys.id }),
         callGAS("getUserData"),
@@ -100,6 +117,8 @@
       ]);
 
       if (!info) throw new Error("ไม่พบข้อมูลอุปกรณ์หรือจุดคืน");
+      
+      statusText.innerText = "รอสักครู่.. กำลังเตรียมหน้าจอสำหรับคุณ";
       renderMain(info, user, verified);
 
     } catch (e) { 
@@ -145,8 +164,6 @@
   async function doVerify() {
     Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
     const res = await callGAS("recordVerify", { id: sys.id });
-    
-    // แก้ไข: เช็คสถานะจาก Object
     if(res && res.status === "SUCCESS") {
         window.location.href = "VerifySuccess.html";
     } else {
@@ -160,8 +177,6 @@
     const res = await callGAS("processAction", { 
       obj: { id: sys.id, action: act, name: user.name, phone: user.phone, role: user.role } 
     });
-    
-    // แก้ไข: เช็คสถานะจาก Object
     if(res && res.status === "SUCCESS") {
         window.location.href = (act === "ยืมอุปกรณ์") ? "BorrowSuccess.html" : "ReturnSuccess.html";
     } else {
@@ -179,8 +194,6 @@
     
     Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
     const res = await callGAS("saveUserData", { data });
-    
-    // แก้ไข: เช็คสถานะจาก Object
     if(res && res.status === "SUCCESS") {
         location.reload(); 
     } else {
