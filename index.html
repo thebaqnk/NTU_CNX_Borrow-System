@@ -14,28 +14,15 @@
     html, body { height: 100%; width: 100%; margin: 0; padding: 0; background: var(--soft-bg); font-family: 'Sarabun', sans-serif; overflow-x: hidden; }
     body { padding: 15px; display: flex; align-items: center; justify-content: center; }
     .card { width: 100%; max-width: 420px; background: white; padding: 25px; border-radius: 24px; box-shadow: 0 10px 25px rgba(157, 133, 225, 0.15); border: none; }
-    .info-header { background: var(--p-purple); color: white; padding: 20px 15px; border-radius: 18px; margin-bottom: 20px; text-align: center; }
-    .btn-purple { background: var(--p-purple); color: white; width: 100%; padding: 16px; border-radius: 14px; font-weight: bold; margin-top: 10px; border: none; font-size: 1.1rem; transition: 0.2s; }
-    .btn-purple:active { transform: scale(0.98); opacity: 0.9; }
-    .profile-box { background: var(--l-purple); border: 1px solid #e1d9ff; padding: 18px; border-radius: 15px; }
     
-    /* --- สไตล์หน้าโหลด: GIF แมวเต้นตัวใหญ่ + Spinner --- */
-    .loading-gif { 
-      width: 180px; /* ขยายให้ใหญ่ขึ้นตามขอ */
-      height: auto; 
-      margin: 0 auto 15px auto; 
-      display: block; 
+    /* --- แมวเต้นฉบับ Emoji (ขึ้นแน่นอนไม่ต้องโหลดรูป) --- */
+    .cat-dance { font-size: 80px; display: block; margin-bottom: 10px; animation: dance 0.6s infinite alternate; }
+    @keyframes dance { 
+      from { transform: rotate(-15deg) scale(1.1); } 
+      to { transform: rotate(15deg) scale(1.1); } 
     }
-    
-    .spinner { 
-      width: 3rem; 
-      height: 3rem; 
-      border: 5px solid var(--l-purple); 
-      border-top: 5px solid var(--p-purple); 
-      border-radius: 50%; 
-      animation: spin 1s linear infinite; 
-      margin: 0 auto 20px auto; 
-    }
+
+    .spinner { width: 3rem; height: 3rem; border: 5px solid var(--l-purple); border-top: 5px solid var(--p-purple); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px auto; }
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     
     .d-none { display: none !important; }
@@ -45,16 +32,13 @@
 <body>
   <div class="card">
     <div id="loadingScreen" class="text-center">
-      <img src="https://media.tenor.com/On7_5Ut7838AAAAC/pizza-party-cat-mouth.gif" alt="Cat Dancing" class="loading-gif">
-      
-      <div class="spinner"></div>
-      
+      <div class="cat-dance">🐱</div> <div class="spinner"></div>
       <p id="statusText" class="text-muted fw-bold">ใจเย็นๆ นะวัยรุ่น... กำลังโหลดข้อมูลครับ</p>
     </div>
 
     <div id="contentArea" class="d-none">
       <div id="pageHeader"></div>
-      <div id="profileBox" class="profile-box mb-3 d-none">
+      <div id="profileBox" class="profile-box mb-3 d-none" style="background: var(--l-purple); border: 1px solid #e1d9ff; padding: 18px; border-radius: 15px;">
         <div class="fw-bold" style="color: var(--d-purple)" id="uNameDisp"></div>
         <div class="small text-muted" id="uPhoneDisp"></div>
         <div id="verifyStatus" class="mt-2"></div>
@@ -69,10 +53,10 @@
         </select>
         <input type="text" id="uName" class="form-control mb-2" placeholder="ชื่อ-นามสกุล">
         <input type="tel" id="uPhone" class="form-control mb-3" placeholder="เบอร์โทรศัพท์">
-        <button onclick="saveUser()" class="btn btn-purple">บันทึกและใช้งาน</button>
+        <button onclick="saveUser()" class="btn btn-purple" style="background: var(--p-purple); color: white; width: 100%; padding: 16px; border-radius: 14px; border: none;">บันทึกและใช้งาน</button>
       </div>
       <div id="actionArea" class="d-none"></div>
-      <div class="version-text" id="versionDisp">v1.3.6 (Fixed Tenor Cat GIF)</div>
+      <div class="version-text" id="versionDisp">v1.3.7 (Emoji Cat - Safe Load)</div>
     </div>
   </div>
 
@@ -82,7 +66,6 @@
 
   let sys = { 
     id: new URLSearchParams(window.location.search).get('id') || "", 
-    mode: new URLSearchParams(window.location.search).get('mode') || "main",
     email: "" 
   };
 
@@ -93,10 +76,7 @@
         body: JSON.stringify({ action, email: sys.email, ...data }) 
       });
       return await response.json();
-    } catch (err) {
-      console.error("GAS Error:", err);
-      return null;
-    }
+    } catch (err) { return null; }
   }
 
   async function init() {
@@ -106,84 +86,57 @@
       if (!liff.isLoggedIn()) { liff.login(); return; }
       const profile = await liff.getProfile();
       sys.email = profile.userId;
-
       statusText.innerText = "กำลังดึงข้อมูลอุปกรณ์...";
-
       const [info, user, verified] = await Promise.all([
         callGAS("getInventoryData", { id: sys.id }),
         callGAS("getUserData"),
         callGAS("checkVerifyStatus")
       ]);
-
-      if (!info) throw new Error("ไม่พบข้อมูลอุปกรณ์");
+      if (!info) throw new Error("ไม่พบข้อมูล");
       renderMain(info, user, verified);
-    } catch (e) { 
-        statusText.innerHTML = `<span class='text-danger'>เกิดข้อผิดพลาด: ${e.message}</span>`;
-    }
+    } catch (e) { statusText.innerHTML = `เกิดข้อผิดพลาด: ${e.message}`; }
   }
 
   function renderMain(info, user, verified) {
     document.getElementById('loadingScreen').classList.add('d-none');
     document.getElementById('contentArea').classList.remove('d-none');
-
     let headerHtml = info.type === "POINT" 
       ? `<div class="text-center mb-3"><div style="font-size:3rem">📍</div><h5 class="fw-bold">จุดคืนอุปกรณ์</h5><div class="alert alert-info py-2 small">${info.room}</div></div>`
-      : `<div class="info-header"><h5 class="mb-1">ชั้น ${info.floor} - ห้อง ${info.room}</h5><small>ID: ${info.id}</small></div>`;
+      : `<div style="background: var(--p-purple); color: white; padding: 20px 15px; border-radius: 18px; margin-bottom: 20px; text-align: center;"><h5 class="mb-1">ชั้น ${info.floor} - ห้อง ${info.room}</h5><small>ID: ${info.id}</small></div>`;
     document.getElementById('pageHeader').innerHTML = headerHtml;
-
     if (user) {
       document.getElementById('uNameDisp').innerText = user.name + " (" + user.role + ")";
       document.getElementById('uPhoneDisp').innerText = "📞 " + user.phone;
       document.getElementById('profileBox').classList.remove('d-none');
       document.getElementById('actionArea').classList.remove('d-none');
-      
-      let actionHtml = "";
-      if (info.type === "POINT") {
-        actionHtml = `<button onclick="doVerify()" class="btn btn-purple">เช็คอินที่นี่</button>`;
-      } else {
-        if (info.status && info.status.includes("ยืม")) {
-          actionHtml = verified 
-            ? `<button onclick="doAction('คืนอุปกรณ์')" class="btn btn-purple" style="background:#6c5ce7">ยืนยันการคืน</button>`
-            : `<div class="alert alert-danger small text-center mb-0">กรุณาสแกนจุดคืนก่อน</div>`;
-        } else {
-          actionHtml = `<button onclick="doAction('ยืมอุปกรณ์')" class="btn btn-purple">ยืนยันการยืม</button>`;
-        }
-      }
+      let actionHtml = info.type === "POINT" ? `<button onclick="doVerify()" class="btn" style="background: var(--p-purple); color: white; width: 100%; padding: 16px; border-radius: 14px; border: none;">เช็คอินที่นี่</button>` : (info.status && info.status.includes("ยืม") ? (verified ? `<button onclick="doAction('คืนอุปกรณ์')" class="btn" style="background:#6c5ce7; color: white; width: 100%; padding: 16px; border-radius: 14px; border: none;">ยืนยันการคืน</button>` : `<div class="alert alert-danger small text-center mb-0">กรุณาสแกนจุดคืนก่อน</div>`) : `<button onclick="doAction('ยืมอุปกรณ์')" class="btn" style="background: var(--p-purple); color: white; width: 100%; padding: 16px; border-radius: 14px; border: none;">ยืนยันการยืม</button>`);
       document.getElementById('actionArea').innerHTML = actionHtml;
       document.getElementById('verifyStatus').innerHTML = (info.status && info.status.includes("ยืม")) ? `<span class="badge ${verified ? 'bg-success' : 'bg-secondary'}">${verified ? 'เช็คอินแล้ว' : 'ยังไม่เช็คอิน'}</span>` : "";
-    } else {
-      document.getElementById('regForm').classList.remove('d-none');
-    }
+    } else { document.getElementById('regForm').classList.remove('d-none'); }
   }
 
   async function doVerify() {
     Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
     const res = await callGAS("recordVerify", { id: sys.id });
     if(res && res.status === "SUCCESS") { window.location.href = "VerifySuccess.html"; }
-    else { Swal.fire('ผิดพลาด', res ? res.message : 'ไม่สำเร็จ', 'error'); }
+    else { Swal.fire('ผิดพลาด', 'ไม่สำเร็จ', 'error'); }
   }
 
   async function doAction(act) {
     Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
     const user = await callGAS("getUserData");
-    const res = await callGAS("processAction", { 
-      obj: { id: sys.id, action: act, name: user.name, phone: user.phone, role: user.role } 
-    });
+    const res = await callGAS("processAction", { obj: { id: sys.id, action: act, name: user.name, phone: user.phone, role: user.role } });
     if(res && res.status === "SUCCESS") { window.location.href = (act === "ยืมอุปกรณ์") ? "BorrowSuccess.html" : "ReturnSuccess.html"; }
-    else { Swal.fire('ผิดพลาด', res ? res.message : 'ไม่สำเร็จ', 'error'); }
+    else { Swal.fire('ผิดพลาด', 'ไม่สำเร็จ', 'error'); }
   }
 
   async function saveUser() {
-    const data = { 
-        name: document.getElementById('uName').value, 
-        phone: document.getElementById('uPhone').value, 
-        role: document.getElementById('uRole').value 
-    };
+    const data = { name: document.getElementById('uName').value, phone: document.getElementById('uPhone').value, role: document.getElementById('uRole').value };
     if(!data.name || !data.phone) { Swal.fire('เตือน', 'กรุณากรอกข้อมูลให้ครบ', 'warning'); return; }
     Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
     const res = await callGAS("saveUserData", { data });
     if(res && res.status === "SUCCESS") { location.reload(); }
-    else { Swal.fire('ผิดพลาด', 'ลงทะเบียนไม่สำเร็จ', 'error'); }
+    else { Swal.fire('ผิดพลาด', 'ไม่สำเร็จ', 'error'); }
   }
 
   function showForm() {
