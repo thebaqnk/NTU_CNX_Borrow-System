@@ -23,7 +23,6 @@
     .status-card:hover { transform: translateY(-5px); }
     .badge-status { border-radius: 10px; padding: 6px 12px; font-size: 0.8rem; }
     
-    /* สไตล์ตามสถานะ */
     .state-ready { border-left: 6px solid var(--ready); }
     .state-pending { border-left: 6px solid var(--pending); }
     .state-borrowed { border-left: 6px solid var(--borrowed); }
@@ -56,20 +55,21 @@
     <div class="spinner-border text-primary" role="status"></div>
   </div>
   
-  <div id="dashboardGrid" class="row row-cols-1 row-cols-md-3 g-3">
-    </div>
+  <div id="dashboardGrid" class="row row-cols-1 row-cols-md-3 g-3"></div>
 </div>
 
 <script>
+  // ลิงก์ GAS ของคุณ
   const GAS_URL = "https://script.google.com/macros/s/AKfycbwgsV2B-36BDdsiKjFtgHYH_ZVyahwelzJCVi2QiLr7VrzaAZa8TpQGJU7yW3IoD_tPHQ/exec";
 
   async function loadDashboard() {
     try {
+      // ดึงข้อมูลผ่าน action=getDashboardData ที่เตรียมไว้ใน .gs
       const response = await fetch(GAS_URL + "?action=getDashboardData");
       const data = await response.json();
       renderDashboard(data);
     } catch (err) {
-      document.getElementById('loading').innerHTML = "<p class='text-danger'>ไม่สามารถโหลดข้อมูลได้</p>";
+      document.getElementById('loading').innerHTML = "<p class='text-danger'>ไม่สามารถโหลดข้อมูลได้ กรุณาตรวจสอบการเชื่อมต่อ</p>";
     }
   }
 
@@ -86,12 +86,12 @@
       let statusLabel = "";
       let icon = "";
 
-      if (item.status === "พร้อมใช้งาน" || item.status === "ว่าง") {
+      if (item.status === "พร้อมใช้งาน" || item.status === "ว่าง" || !item.status) {
         cardClass = "state-ready";
         statusLabel = '<span class="badge bg-success badge-status text-white">ว่าง</span>';
         icon = "fa-check-circle text-success";
         stats.ready++;
-      } else if (item.status.includes("รออนุมัติ") || item.status.includes("ถูกจอง")) {
+      } else if (item.status.includes("รออนุมัติ") || item.status.includes("จอง")) {
         cardClass = "state-pending";
         statusLabel = '<span class="badge bg-warning badge-status text-dark">รออนุมัติ / จอง</span>';
         icon = "fa-clock text-warning";
@@ -110,7 +110,7 @@
               <div class="d-flex justify-content-between align-items-center">
                 <div>
                   <h5 class="fw-bold mb-1">${item.id}</h5>
-                  <p class="small text-muted mb-0">${item.room || 'ห้องบรรยาย'}</p>
+                  <p class="small text-muted mb-0">${item.room || 'คลังอุปกรณ์'}</p>
                 </div>
                 <i class="fa-solid ${icon} fs-3"></i>
               </div>
@@ -125,7 +125,6 @@
       `;
     });
 
-    // อัปเดตตัวเลขสรุป
     document.getElementById('countReady').innerText = stats.ready;
     document.getElementById('countPending').innerText = stats.pending;
     document.getElementById('countBorrowed').innerText = stats.borrowed;
