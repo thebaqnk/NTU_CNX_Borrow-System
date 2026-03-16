@@ -73,67 +73,54 @@
     }
   }
 
+async function loadDashboard() {
+  try {
+    const response = await fetch(GAS_URL + "?action=getDashboardData");
+    const data = await response.json(); // data ตอนนี้จะมี { items: [], summary: {} }
+    
+    // 1. อัปเดตตัวเลขจาก F10, F11 โดยตรง
+    document.getElementById('countBorrowed').innerText = data.summary.borrowed;
+    document.getElementById('countReady').innerText = data.summary.ready;
+    
+    // 2. วาดการ์ดตะกร้า 7 อัน
+    renderDashboard(data.items);
+  } catch (err) {
+    document.getElementById('loading').innerHTML = "<p class='text-danger'>โหลดข้อมูลไม่สำเร็จ</p>";
+  }
+}
+
 function renderDashboard(items) {
   const grid = document.getElementById('dashboardGrid');
-  const summary = { ready: 0, pending: 0, borrowed: 0 };
   grid.innerHTML = "";
 
   items.forEach(item => {
-    // --- เงื่อนไขการเช็คสถานะ ---
-    const isReserved = item.status.includes("ถูกจอง"); // เช็คจาก Column D ตามที่คุณบอก
-    const isReady = (item.type === "ว่าง" || item.status === "พร้อมใช้งาน") && !isReserved;
+    // Logic เช็คสถานะจองจาก Column D
+    const isReserved = item.status.includes("ถูกจอง");
+    const isReady = item.type === "ว่าง" || item.status === "พร้อมใช้งาน";
     
-    let cardClass = "";
-    let icon = "";
-    let statusText = "";
-    let badgeClass = "";
-
-    if (isReserved) {
-      cardClass = "state-pending";
-      icon = "fa-clock text-warning";
-      statusText = "ถูกจอง (นอกเวลา)";
-      badgeClass = "bg-warning text-dark";
-      summary.pending++;
-    } else if (isReady) {
-      cardClass = "state-ready";
-      icon = "fa-check-circle text-success";
-      statusText = "ว่าง";
-      badgeClass = "bg-success text-white";
-      summary.ready++;
-    } else {
-      cardClass = "state-borrowed";
-      icon = "fa-user-lock text-danger";
-      statusText = "ถูกยืม";
-      badgeClass = "bg-danger text-white";
-      summary.borrowed++;
-    }
+    let cardClass = isReserved ? "state-pending" : (isReady ? "state-ready" : "state-borrowed");
+    let icon = isReserved ? "fa-clock text-warning" : (isReady ? "fa-check-circle text-success" : "fa-user-lock text-danger");
+    let statusText = isReserved ? "ถูกจอง (นอกเวลา)" : (isReady ? "ว่าง" : "ถูกยืม");
+    let badgeClass = isReserved ? "bg-warning text-dark" : (isReady ? "bg-success" : "bg-danger");
 
     grid.innerHTML += `
       <div class="col">
         <div class="card status-card ${cardClass}">
           <div class="card-body">
             <div class="d-flex justify-content-between">
-              <div>
-                <h5 class="fw-bold">${item.id}</h5>
-                <p class="small text-muted mb-0">${item.room}</p>
-              </div>
+              <div><h5 class="fw-bold">${item.id}</h5><p class="small text-muted mb-0">${item.room}</p></div>
               <i class="fa-solid ${icon} fs-3"></i>
             </div>
             <hr class="my-2 opacity-25">
             <div class="d-flex justify-content-between align-items-center">
                <span class="badge ${badgeClass} badge-status">${statusText}</span>
-               <small class="text-muted" style="font-size: 0.7rem;">${item.status}</small>
+               <small class="text-muted" style="font-size: 0.75rem;">${item.status}</small>
             </div>
           </div>
         </div>
       </div>`;
   });
 
-  // อัปเดตตัวเลขสรุป (เพิ่มช่องรออนุมัติ/จอง เข้าไปด้วยถ้ามี)
-  document.getElementById('countReady').innerText = summary.ready;
-  document.getElementById('countPending').innerText = summary.pending;
-  document.getElementById('countBorrowed').innerText = summary.borrowed;
-  
   document.getElementById('loading').classList.add('d-none');
   document.getElementById('summaryArea').classList.remove('d-none');
 }
