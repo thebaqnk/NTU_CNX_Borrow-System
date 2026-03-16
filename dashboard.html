@@ -59,81 +59,67 @@
 </div>
 
 <script>
-  // ลิงก์ GAS ของคุณ
   const GAS_URL = "https://script.google.com/macros/s/AKfycbwgsV2B-36BDdsiKjFtgHYH_ZVyahwelzJCVi2QiLr7VrzaAZa8TpQGJU7yW3IoD_tPHQ/exec";
 
   async function loadDashboard() {
     try {
-      // ดึงข้อมูลผ่าน action=getDashboardData ที่เตรียมไว้ใน .gs
       const response = await fetch(GAS_URL + "?action=getDashboardData");
-      const data = await response.json();
-      renderDashboard(data);
+      const data = await response.json(); 
+      
+      // 1. อัปเดตตัวเลขสรุปจาก GAS (F10, F11)
+      document.getElementById('countBorrowed').innerText = data.summary.borrowed || 0;
+      document.getElementById('countReady').innerText = data.summary.ready || 0;
+      // หมายเหตุ: ถ้าในชีทไม่มีค่านับรออนุมัติแยกไว้ จะขึ้น 0 ไปก่อนครับ
+      
+      // 2. วาดการ์ดอุปกรณ์
+      renderDashboard(data.items);
     } catch (err) {
-      document.getElementById('loading').innerHTML = "<p class='text-danger'>ไม่สามารถโหลดข้อมูลได้ กรุณาตรวจสอบการเชื่อมต่อ</p>";
+      document.getElementById('loading').innerHTML = "<p class='text-danger'>โหลดข้อมูลไม่สำเร็จ กรุณาลองใหม่อีกครั้ง</p>";
     }
   }
 
-async function loadDashboard() {
-  try {
-    const response = await fetch(GAS_URL + "?action=getDashboardData");
-    const data = await response.json(); // data ตอนนี้จะมี { items: [], summary: {} }
-    
-    // 1. อัปเดตตัวเลขจาก F10, F11 โดยตรง
-    document.getElementById('countBorrowed').innerText = data.summary.borrowed;
-    document.getElementById('countReady').innerText = data.summary.ready;
-    
-    // 2. วาดการ์ดตะกร้า 7 อัน
-    renderDashboard(data.items);
-  } catch (err) {
-    document.getElementById('loading').innerHTML = "<p class='text-danger'>โหลดข้อมูลไม่สำเร็จ</p>";
-  }
-}
+  function renderDashboard(items) {
+    const grid = document.getElementById('dashboardGrid');
+    grid.innerHTML = "";
 
-function renderDashboard(items) {
-  const grid = document.getElementById('dashboardGrid');
-  grid.innerHTML = "";
+    items.forEach(item => {
+      const isReserved = item.status.includes("ถูกจอง");
+      const isReady = item.type === "ว่าง" || item.status === "พร้อมใช้งาน";
+      
+      let cardClass = isReserved ? "state-pending" : (isReady ? "state-ready" : "state-borrowed");
+      let icon = isReserved ? "fa-clock text-warning" : (isReady ? "fa-check-circle text-success" : "fa-user-lock text-danger");
+      let statusText = isReserved ? "ถูกจอง (นอกเวลา)" : (isReady ? "ว่าง" : "ถูกยืม");
+      let badgeClass = isReserved ? "bg-warning text-dark" : (isReady ? "bg-success" : "bg-danger");
 
-  items.forEach(item => {
-    const isReserved = item.status.includes("ถูกจอง");
-    const isReady = item.type === "ว่าง" || item.status === "พร้อมใช้งาน";
-    
-    let cardClass = isReserved ? "state-pending" : (isReady ? "state-ready" : "state-borrowed");
-    let icon = isReserved ? "fa-clock text-warning" : (isReady ? "fa-check-circle text-success" : "fa-user-lock text-danger");
-    let statusText = isReserved ? "ถูกจอง (นอกเวลา)" : (isReady ? "ว่าง" : "ถูกยืม");
-    let badgeClass = isReserved ? "bg-warning text-dark" : (isReady ? "bg-success" : "bg-danger");
-
-grid.innerHTML += `
-      <div class="col">
-        <div class="card status-card ${cardClass}">
-          <div class="card-body">
-            <div class="d-flex justify-content-between align-items-start">
-              <div class="w-100">
-                <h5 class="fw-bold mb-0 text-dark">
-                  <i class="fa-solid fa-location-dot me-1 text-primary" style="font-size: 0.9rem;"></i>
-                  ${item.floor || '-'} | ${item.room || '-'}
-                </h5>
-                
-                <p class="small text-muted mb-0 mt-1">
-                  ID: <span class="fw-bold text-secondary">${item.id}</span>
-                </p>
+      grid.innerHTML += `
+        <div class="col">
+          <div class="card status-card ${cardClass}">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-start">
+                <div class="w-100">
+                  <h5 class="fw-bold mb-0 text-dark">
+                    <i class="fa-solid fa-location-dot me-1 text-primary" style="font-size: 0.9rem;"></i>
+                    ${item.floor || '-'} | ${item.room || '-'}
+                  </h5>
+                  <p class="small text-muted mb-0 mt-1">
+                    ID: <span class="fw-bold text-secondary">${item.id}</span>
+                  </p>
+                </div>
+                <i class="fa-solid ${icon} fs-3"></i>
               </div>
-              
-              <i class="fa-solid ${icon} fs-3"></i>
-            </div>
-            
-            <hr class="my-2 opacity-25">
-            
-            <div class="d-flex justify-content-between align-items-center">
-               <span class="badge ${badgeClass} badge-status">${statusText}</span>
-               <small class="text-muted" style="font-size: 0.7rem;">${item.status}</small>
+              <hr class="my-2 opacity-25">
+              <div class="d-flex justify-content-between align-items-center">
+                 <span class="badge ${badgeClass} badge-status">${statusText}</span>
+                 <small class="text-muted" style="font-size: 0.7rem;">${item.status}</small>
+              </div>
             </div>
           </div>
-        </div>
-      </div>`;
+        </div>`;
+    }); // ปิด forEach ตรงนี้
 
-  document.getElementById('loading').classList.add('d-none');
-  document.getElementById('summaryArea').classList.remove('d-none');
-}
+    document.getElementById('loading').classList.add('d-none');
+    document.getElementById('summaryArea').classList.remove('d-none');
+  }
 
   document.addEventListener('DOMContentLoaded', loadDashboard);
 </script>
