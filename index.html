@@ -15,8 +15,8 @@
     body { padding: 15px; display: flex; align-items: center; justify-content: center; }
     .card { width: 100%; max-width: 420px; background: white; padding: 25px; border-radius: 24px; box-shadow: 0 10px 25px rgba(157, 133, 225, 0.15); border: none; }
     
-    /* --- แมวเต้นฉบับ Emoji (ขึ้นแน่นอนไม่ต้องโหลดรูป) --- */
-    .cat-dance { font-size: 80px; display: block; margin-bottom: 10px; animation: dance 0.6s infinite alternate; }
+    /* --- Animation สำหรับ Emoji สลับอุปกรณ์ --- */
+    .emoji-load { font-size: 80px; display: block; margin-bottom: 10px; height: 100px; line-height: 100px; animation: dance 0.6s infinite alternate; }
     @keyframes dance { 
       from { transform: rotate(-15deg) scale(1.1); } 
       to { transform: rotate(15deg) scale(1.1); } 
@@ -32,7 +32,7 @@
 <body>
   <div class="card">
     <div id="loadingScreen" class="text-center">
-      <div class="cat-dance">🐱</div> <div class="spinner"></div>
+      <div id="emojiDisplay" class="emoji-load">📚</div> <div class="spinner"></div>
       <p id="statusText" class="text-muted fw-bold">ใจเย็นๆ นะวัยรุ่น... กำลังโหลดข้อมูลครับ</p>
     </div>
 
@@ -56,7 +56,7 @@
         <button onclick="saveUser()" class="btn btn-purple" style="background: var(--p-purple); color: white; width: 100%; padding: 16px; border-radius: 14px; border: none;">บันทึกและใช้งาน</button>
       </div>
       <div id="actionArea" class="d-none"></div>
-      <div class="version-text" id="versionDisp">v1.3.7 (Emoji Cat - Safe Load)</div>
+      <div class="version-text">v1.3.8 (Device Emoji Loop)</div>
     </div>
   </div>
 
@@ -64,10 +64,18 @@
   const LIFF_ID = "2009184396-t5vJHbvQ"; 
   const GAS_URL = "https://script.google.com/macros/s/AKfycbwgsV2B-36BDdsiKjFtgHYH_ZVyahwelzJCVi2QiLr7VrzaAZa8TpQGJU7yW3IoD_tPHQ/exec";
 
-  let sys = { 
-    id: new URLSearchParams(window.location.search).get('id') || "", 
-    email: "" 
-  };
+  let sys = { id: new URLSearchParams(window.location.search).get('id') || "", email: "" };
+
+  // --- ฟังก์ชันสลับ Emoji ---
+  const emojis = ["📚", "📓", "✏️", "🎤", "📢"];
+  let emojiIdx = 0;
+  setInterval(() => {
+    const el = document.getElementById('emojiDisplay');
+    if (el) {
+      emojiIdx = (emojiIdx + 1) % emojis.length;
+      el.innerText = emojis[emojiIdx];
+    }
+  }, 500); // สลับทุก 0.5 วินาที
 
   async function callGAS(action, data = {}) {
     try {
@@ -86,7 +94,7 @@
       if (!liff.isLoggedIn()) { liff.login(); return; }
       const profile = await liff.getProfile();
       sys.email = profile.userId;
-      statusText.innerText = "กำลังดึงข้อมูลอุปกรณ์...";
+      statusText.innerText = "กำลังตรวจสอบรายการอุปกรณ์...";
       const [info, user, verified] = await Promise.all([
         callGAS("getInventoryData", { id: sys.id }),
         callGAS("getUserData"),
