@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard สถานะอุปกรณ์</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap');
+    :root { 
+      --bg-light: #f8f9fa;
+      --card-shadow: 0 4px 15px rgba(0,0,0,0.05);
+      --ready: #2ecc71;
+      --pending: #f1c40f;
+      --borrowed: #e74c3c;
+    }
+    body { font-family: 'Sarabun', sans-serif; background-color: var(--bg-light); padding: 20px; }
+    .status-card {
+      border: none; border-radius: 18px; box-shadow: var(--card-shadow);
+      transition: transform 0.2s; margin-bottom: 15px; background: white;
+    }
+    .status-card:hover { transform: translateY(-5px); }
+    .badge-status { border-radius: 10px; padding: 6px 12px; font-size: 0.8rem; }
+    
+    /* สไตล์ตามสถานะ */
+    .state-ready { border-left: 6px solid var(--ready); }
+    .state-pending { border-left: 6px solid var(--pending); }
+    .state-borrowed { border-left: 6px solid var(--borrowed); }
+    
+    .loading-spinner { display: flex; justify-content: center; align-items: center; height: 200px; }
+    .stat-summary { background: white; border-radius: 15px; padding: 15px; margin-bottom: 25px; box-shadow: var(--card-shadow); }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h4 class="fw-bold mb-4 text-center"><i class="fa-solid fa-chart-pie me-2"></i>สรุปสถานะอุปกรณ์</h4>
+
+  <div id="summaryArea" class="row stat-summary g-2 text-center d-none">
+    <div class="col-4 border-end">
+      <div class="small text-muted">ว่าง</div>
+      <div class="h4 fw-bold text-success" id="countReady">0</div>
+    </div>
+    <div class="col-4 border-end">
+      <div class="small text-muted">รออนุมัติ</div>
+      <div class="h4 fw-bold text-warning" id="countPending">0</div>
+    </div>
+    <div class="col-4">
+      <div class="small text-muted">ถูกยืม</div>
+      <div class="h4 fw-bold text-danger" id="countBorrowed">0</div>
+    </div>
+  </div>
+
+  <div id="loading" class="loading-spinner">
+    <div class="spinner-border text-primary" role="status"></div>
+  </div>
+  
+  <div id="dashboardGrid" class="row row-cols-1 row-cols-md-3 g-3">
+    </div>
+</div>
+
+<script>
+  const GAS_URL = "https://script.google.com/macros/s/AKfycbwgsV2B-36BDdsiKjFtgHYH_ZVyahwelzJCVi2QiLr7VrzaAZa8TpQGJU7yW3IoD_tPHQ/exec";
+
+  async function loadDashboard() {
+    try {
+      const response = await fetch(GAS_URL + "?action=getDashboardData");
+      const data = await response.json();
+      renderDashboard(data);
+    } catch (err) {
+      document.getElementById('loading').innerHTML = "<p class='text-danger'>ไม่สามารถโหลดข้อมูลได้</p>";
+    }
+  }
+
+  function renderDashboard(items) {
+    const grid = document.getElementById('dashboardGrid');
+    const loading = document.getElementById('loading');
+    const summary = document.getElementById('summaryArea');
+    grid.innerHTML = "";
+    
+    let stats = { ready: 0, pending: 0, borrowed: 0 };
+
+    items.forEach(item => {
+      let cardClass = "";
+      let statusLabel = "";
+      let icon = "";
+
+      if (item.status === "พร้อมใช้งาน" || item.status === "ว่าง") {
+        cardClass = "state-ready";
+        statusLabel = '<span class="badge bg-success badge-status text-white">ว่าง</span>';
+        icon = "fa-check-circle text-success";
+        stats.ready++;
+      } else if (item.status.includes("รออนุมัติ") || item.status.includes("ถูกจอง")) {
+        cardClass = "state-pending";
+        statusLabel = '<span class="badge bg-warning badge-status text-dark">รออนุมัติ / จอง</span>';
+        icon = "fa-clock text-warning";
+        stats.pending++;
+      } else {
+        cardClass = "state-borrowed";
+        statusLabel = '<span class="badge bg-danger badge-status text-white">ถูกยืม</span>';
+        icon = "fa-user-lock text-danger";
+        stats.borrowed++;
+      }
+
+      grid.innerHTML += `
+        <div class="col">
+          <div class="card status-card ${cardClass}">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <h5 class="fw-bold mb-1">${item.id}</h5>
+                  <p class="small text-muted mb-0">${item.room || 'ห้องบรรยาย'}</p>
+                </div>
+                <i class="fa-solid ${icon} fs-3"></i>
+              </div>
+              <hr class="my-2 opacity-25">
+              <div class="d-flex justify-content-between align-items-center">
+                ${statusLabel}
+                <small class="text-muted">${item.type || 'ทั่วไป'}</small>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    });
+
+    // อัปเดตตัวเลขสรุป
+    document.getElementById('countReady').innerText = stats.ready;
+    document.getElementById('countPending').innerText = stats.pending;
+    document.getElementById('countBorrowed').innerText = stats.borrowed;
+    
+    loading.classList.add('d-none');
+    summary.classList.remove('d-none');
+  }
+
+  document.addEventListener('DOMContentLoaded', loadDashboard);
+</script>
+</body>
+</html>
