@@ -13,9 +13,7 @@
     :root { --p-purple: #9d85e1; --soft-bg: #f8f7ff; }
     body { font-family: 'Sarabun', sans-serif; background: var(--soft-bg); padding: 15px; padding-top: 70px; }
     
-    /* Header ปุ่มรีเฟรชแบบ Fixed ด้านบน */
     .header-nav { position: fixed; top: 0; left: 0; right: 0; background: white; padding: 10px 20px; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; }
-    
     .card-custom { background: white; border-radius: 20px; padding: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); border: none; margin-bottom: 15px; }
     .status-dot { height: 10px; width: 10px; border-radius: 50%; display: inline-block; margin-right: 8px; }
     .bg-ready { background-color: #28a745; }
@@ -24,10 +22,11 @@
     .history-row:active { background-color: #f0f0f0; }
     .user-name { font-size: 0.75rem; color: #6c757d; }
     .modal-content { border-radius: 25px; border: none; }
-    
-    /* Animation สำหรับปุ่มรีเฟรชตอนกด */
     .spinning { animation: spin 0.8s linear; }
     @keyframes spin { 100% { transform: rotate(360deg); } }
+    
+    /* สไตล์เพิ่มเติมสำหรับป้ายบอกชั้น */
+    .floor-badge { background: #eef2ff; color: #6366f1; padding: 2px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: bold; margin-right: 5px; }
   </style>
 </head>
 <body>
@@ -56,7 +55,7 @@
     </div>
 
     <div class="card-custom">
-      <h6 class="fw-bold mb-3"><i class="fas fa-microchip me-2 text-primary"></i>สถานะอุปกรณ์</h6>
+      <h6 class="fw-bold mb-3"><i class="fas fa-microchip me-2 text-primary"></i>สถานะอุปกรณ์ (รายชั้น)</h6>
       <div id="inventoryList">
         <div class="text-center p-4 text-muted small">กำลังโหลดข้อมูล...</div>
       </div>
@@ -84,7 +83,6 @@
           <div class="mb-3 text-primary"><i class="fas fa-user-circle fa-4x"></i></div>
           <h5 class="fw-bold mb-1" id="modalName">-</h5>
           <p class="badge bg-light text-primary rounded-pill mb-3" id="modalRole">-</p>
-          
           <div class="text-start p-3 bg-light rounded-3 mb-3">
             <div class="mb-1">
               <small class="text-muted d-block">เบอร์โทรศัพท์สำหรับติดต่อ:</small>
@@ -121,23 +119,28 @@
       const data = await response.json();
       historyData = data.history;
 
-      // 1. อัปเดต Summary
       document.getElementById('sumReady').innerText = data.summary.ready;
       document.getElementById('sumBorrowed').innerText = data.summary.borrowed;
 
-      // 2. อัปเดต Inventory
+      // แก้ไขส่วน Inventory ให้แสดง "ชั้น"
       const invContainer = document.getElementById('inventoryList');
       invContainer.innerHTML = "";
       data.items.forEach(item => {
         const isBorrowed = item.status.includes("ยืม");
         invContainer.innerHTML += `
           <div class="d-flex justify-content-between align-items-center mb-2 border-bottom pb-2">
-            <div><span class="fw-bold">${item.id}</span> <small class="text-muted ms-1">${item.room}</small></div>
-            <div><span class="status-dot ${isBorrowed ? 'bg-borrowed' : 'bg-ready'}"></span><small class="${isBorrowed ? 'text-danger' : 'text-success'}">${item.status}</small></div>
+            <div>
+                <span class="floor-badge">ชั้น ${item.floor}</span>
+                <span class="fw-bold">${item.id}</span> 
+                <div class="text-muted small d-inline ms-1">(${item.room})</div>
+            </div>
+            <div>
+                <span class="status-dot ${isBorrowed ? 'bg-borrowed' : 'bg-ready'}"></span>
+                <small class="${isBorrowed ? 'text-danger' : 'text-success'} fw-bold">${item.status}</small>
+            </div>
           </div>`;
       });
 
-      // 3. อัปเดต History (โชว์ Role ในวงเล็บแทน ID Line)
       const histContainer = document.getElementById('historyList');
       histContainer.innerHTML = "";
       data.history.forEach((log, index) => {
