@@ -19,7 +19,7 @@
     .history-row { cursor: pointer; transition: 0.2s; }
     .history-row:active { background-color: #f0f0f0; }
     .user-name { font-size: 0.75rem; color: #6c757d; }
-    .modal-content { border-radius: 20px; border: none; }
+    .modal-content { border-radius: 25px; border: none; }
   </style>
 </head>
 <body>
@@ -41,8 +41,8 @@
 
     <div class="card-custom">
       <div class="d-flex justify-content-between align-items-center mb-3">
-        <h6 class="fw-bold m-0">📋 รายการอุปกรณ์</h6>
-        <button onclick="loadAdminData()" class="btn btn-sm btn-light text-primary">🔄 รีเฟรช</button>
+        <h6 class="fw-bold m-0"><i class="fas fa-microchip me-2 text-primary"></i>สถานะอุปกรณ์</h6>
+        <button onclick="loadAdminData()" class="btn btn-sm btn-light text-primary rounded-pill px-3">🔄 รีเฟรช</button>
       </div>
       <div id="inventoryList">
         <div class="text-center p-4 text-muted small">กำลังโหลดข้อมูล...</div>
@@ -50,11 +50,11 @@
     </div>
 
     <div class="card-custom">
-      <h6 class="fw-bold mb-3">🕒 ประวัติ (คลิกเพื่อดูรายละเอียด)</h6>
+      <h6 class="fw-bold mb-3"><i class="fas fa-history me-2 text-primary"></i>ประวัติย้อนหลัง (15 รายการ)</h6>
       <div class="table-responsive">
         <table class="table table-sm table-hover border-top m-0">
           <tbody id="historyList">
-            <tr><td class="text-center py-4 text-muted small">กำลังดึงข้อมูลประวัติ...</td></tr>
+            <tr><td class="text-center py-4 text-muted small">กำลังดึงข้อมูล...</td></tr>
           </tbody>
         </table>
       </div>
@@ -63,21 +63,22 @@
 
   <div class="modal fade" id="userModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-sm">
-      <div class="modal-content shadow">
+      <div class="modal-content shadow-lg">
         <div class="modal-body text-center p-4">
-          <div class="mb-3 text-primary"><i class="fas fa-user-circle fa-3x"></i></div>
+          <div class="mb-3 text-primary"><i class="fas fa-user-circle fa-4x"></i></div>
           <h5 class="fw-bold mb-1" id="modalName">-</h5>
-          <p class="text-muted small mb-3" id="modalRole">-</p>
-          <hr>
-          <div class="text-start mb-3">
-            <small class="text-muted d-block">เบอร์โทรศัพท์:</small>
-            <span class="fw-bold" id="modalPhone">-</span>
+          <p class="badge bg-light text-primary rounded-pill mb-3" id="modalRole">-</p>
+          <div class="text-start p-3 bg-light rounded-3 mb-3">
+            <div class="mb-2">
+              <small class="text-muted d-block">เบอร์โทรศัพท์:</small>
+              <span class="fw-bold" id="modalPhone">-</span>
+            </div>
+            <div>
+              <small class="text-muted d-block">Line ID:</small>
+              <span class="small" id="modalLine" style="word-break: break-all;">-</span>
+            </div>
           </div>
-          <div class="text-start mb-3">
-            <small class="text-muted d-block">Line ID / Email:</small>
-            <span class="small" id="modalLine" style="word-break: break-all;">-</span>
-          </div>
-          <button type="button" class="btn btn-secondary w-100 rounded-pill" data-bs-dismiss="modal">ปิดหน้าต่าง</button>
+          <button type="button" class="btn btn-secondary w-100 rounded-pill" data-bs-dismiss="modal">ปิด</button>
         </div>
       </div>
     </div>
@@ -112,7 +113,7 @@
         invContainer.innerHTML += `
           <div class="d-flex justify-content-between align-items-center mb-2 border-bottom pb-2">
             <div><span class="fw-bold">${item.id}</span> <small class="text-muted ms-1">${item.room}</small></div>
-            <div><span class="status-dot ${isBorrowed ? 'bg-borrowed' : 'bg-ready'}"></span><small>${item.status}</small></div>
+            <div><span class="status-dot ${isBorrowed ? 'bg-borrowed' : 'bg-ready'}"></span><small class="${isBorrowed ? 'text-danger' : 'text-success'}">${item.status}</small></div>
           </div>`;
       });
 
