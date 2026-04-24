@@ -15,6 +15,19 @@
         .btn-purple { background-color: #7a61c5; color: white; border-radius: 12px; padding: 12px; font-weight: bold; border: none; width: 100%; }
         .info-box { background: #fff9db; border-left: 5px solid #fcc419; padding: 15px; border-radius: 8px; font-size: 0.85rem; color: #664d03; margin-bottom: 20px; }
         .highlight { color: #e67e22; font-weight: bold; }
+        
+        /* ส่วนที่เพิ่ม: แถบแจ้งเตือนเงื่อนไขบนสุด */
+        .ot-warning-banner { 
+            background: #fff4e6; 
+            border: 1px solid #ffe8cc; 
+            border-radius: 12px; 
+            padding: 12px; 
+            margin-bottom: 15px; 
+            display: flex; 
+            align-items: center;
+            color: #af5b00;
+            font-size: 0.9rem;
+        }
     </style>
 </head>
 <body>
@@ -24,6 +37,14 @@
                 <h4 class="fw-bold mb-0">📝 ขอยืมอุปกรณ์นอกเวลา</h4>
             </div>
             <div class="p-4">
+
+                <div class="ot-warning-banner">
+                    <span class="me-2" style="font-size: 1.2rem;">⚠️</span>
+                    <div>
+                        <strong>คำเตือน:</strong> ใช้สำหรับยืมนอกเวลา (หลัง 17:00 น. หรือวันอาทิตย์) เท่านั้น
+                    </div>
+                </div>
+
                 <div class="info-box">
                     <strong>📢 กฎการยืมนอกเวลา:</strong><br>
                     • <span class="highlight">รับอุปกรณ์เวลา 16:00-16:30 น.</span> ของวันก่อนเข้าใช้งาน<br>
@@ -74,7 +95,7 @@
         const GAS_URL = "https://script.google.com/macros/s/AKfycbwgsV2B-36BDdsiKjFtgHYH_ZVyahwelzJCVi2QiLr7VrzaAZa8TpQGJU7yW3IoD_tPHQ/exec";
         let userLineId = "";
 
-        // ข้อมูลอ้างอิงตามรูป Screenshot (ID, ชั้น, ห้อง)
+        // ข้อมูลอ้างอิงตามเดิม
         const inventoryData = [
             { id: "F1-R1", floor: "1", room: "บรรยาย 1" },
             { id: "F1-R2", floor: "1", room: "บรรยาย 2" },
@@ -105,7 +126,10 @@
                 else {
                     const profile = await liff.getProfile();
                     userLineId = profile.userId;
-                    const res = await fetch(GAS_URL, { method: "POST", body: JSON.stringify({ action: "getUserData", email: userLineId }) });
+                    const res = await fetch(GAS_URL, { 
+                        method: "POST", 
+                        body: JSON.stringify({ action: "getUserData", email: userLineId }) 
+                    });
                     const userData = await res.json();
                     if (userData) {
                         document.getElementById('userName').value = userData.name;
@@ -121,7 +145,10 @@
         async function submitRequest() {
             const itemId = document.getElementById('itemId').value;
             const time = document.getElementById('usageTime').value;
-            if (!itemId || !time) { Swal.fire("เตือน", "กรุณาระบุข้อมูลให้ครบ", "warning"); return; }
+            if (!itemId || !time) { 
+                Swal.fire("เตือน", "กรุณาระบุข้อมูลให้ครบ", "warning"); 
+                return; 
+            }
 
             Swal.fire({ title: 'กำลังส่งคำขอ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
@@ -142,7 +169,9 @@
                 if (result.status === "SUCCESS") {
                     Swal.fire("สำเร็จ!", "กรุณามารับอุปกรณ์ช่วงเวลา 16:00-16:30 น.", "success").then(() => liff.closeWindow());
                 }
-            } catch (err) { Swal.fire("Error", "เกิดข้อผิดพลาด", "error"); }
+            } catch (err) { 
+                Swal.fire("Error", "เกิดข้อผิดพลาด", "error"); 
+            }
         }
         document.addEventListener("DOMContentLoaded", init);
     </script>
