@@ -63,7 +63,10 @@
     </div>
 
     <div class="card-custom">
-      <h6 class="fw-bold mb-3"><i class="fas fa-history me-2 text-primary"></i>ประวัติย้อนหลัง (15 รายการ)</h6>
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h6 class="fw-bold m-0"><i class="fas fa-history me-2 text-primary"></i>ประวัติล่าสุด</h6>
+        <small class="text-danger fw-bold" style="font-size: 10px;">* ย้อนหลัง 7 วัน</small>
+      </div>
       <div class="table-responsive">
         <table class="table table-sm table-hover border-top m-0">
           <tbody id="historyList">
@@ -81,14 +84,11 @@
           <div class="mb-3 text-primary"><i class="fas fa-user-circle fa-4x"></i></div>
           <h5 class="fw-bold mb-1" id="modalName">-</h5>
           <p class="badge bg-light text-primary rounded-pill mb-3" id="modalRole">-</p>
+          
           <div class="text-start p-3 bg-light rounded-3 mb-3">
-            <div class="mb-2">
-              <small class="text-muted d-block">เบอร์โทรศัพท์:</small>
-              <span class="fw-bold" id="modalPhone">-</span>
-            </div>
-            <div>
-              <small class="text-muted d-block">Line ID:</small>
-              <span class="small" id="modalLine" style="word-break: break-all;">-</span>
+            <div class="mb-1">
+              <small class="text-muted d-block">เบอร์โทรศัพท์สำหรับติดต่อ:</small>
+              <span class="fw-bold fs-6" id="modalPhone">-</span>
             </div>
           </div>
           <button type="button" class="btn btn-secondary w-100 rounded-pill" data-bs-dismiss="modal">ปิด</button>
@@ -137,7 +137,7 @@
           </div>`;
       });
 
-      // 3. อัปเดต History
+      // 3. อัปเดต History (โชว์ Role ในวงเล็บแทน ID Line)
       const histContainer = document.getElementById('historyList');
       histContainer.innerHTML = "";
       data.history.forEach((log, index) => {
@@ -145,7 +145,10 @@
         histContainer.innerHTML += `
           <tr class="align-middle history-row" onclick="showUserDetail(${index})">
             <td style="width: 25%"><div class="small text-muted">${log.timestamp}</div><div class="fw-bold">${log.itemID}</div></td>
-            <td><div class="${isBorrow ? 'text-danger' : 'text-success'} fw-bold">${log.action}</div><div class="user-name">${log.userName}</div></td>
+            <td>
+                <div class="${isBorrow ? 'text-danger' : 'text-success'} fw-bold">${log.action}</div>
+                <div class="user-name">${log.userName} <small class="text-muted">(${log.userRole})</small></div>
+            </td>
           </tr>`;
       });
     } catch (e) {
@@ -164,7 +167,6 @@
     document.getElementById('modalName').innerText = user.userName;
     document.getElementById('modalRole').innerText = user.userRole;
     document.getElementById('modalPhone').innerText = user.userPhone;
-    document.getElementById('modalLine').innerText = user.lineID;
     const myModal = new bootstrap.Modal(document.getElementById('userModal'));
     myModal.show();
   }
