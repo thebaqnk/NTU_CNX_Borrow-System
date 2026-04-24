@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <title>Admin Dashboard - NTU</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/all.min.css">
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap');
@@ -15,118 +16,106 @@
     .bg-ready { background-color: #28a745; }
     .bg-borrowed { background-color: #dc3545; }
     .table-sm { font-size: 0.85rem; }
-    .history-item { border-left: 3px solid var(--p-purple); padding-left: 10px; margin-bottom: 10px; }
+    .refresh-btn { border-radius: 12px; font-size: 0.8rem; transition: 0.3s; }
+    .refresh-btn:active { transform: scale(0.9); }
   </style>
 </head>
 <body>
-
   <div class="container-fluid">
     <div class="row g-2 mb-3">
       <div class="col-6">
         <div class="card-custom text-center p-3">
-          <small class="text-muted">ว่างพร้อมใช้</small>
-          <h3 class="fw-bold text-success" id="sumReady">-</h3>
+          <small class="text-muted d-block mb-1">ว่างพร้อมใช้</small>
+          <h3 class="fw-bold text-success m-0" id="sumReady">-</h3>
         </div>
       </div>
       <div class="col-6">
         <div class="card-custom text-center p-3">
-          <small class="text-muted">กำลังถูกยืม</small>
-          <h3 class="fw-bold text-danger" id="sumBorrowed">-</h3>
+          <small class="text-muted d-block mb-1">กำลังถูกยืม</small>
+          <h3 class="fw-bold text-danger m-0" id="sumBorrowed">-</h3>
         </div>
       </div>
     </div>
-
     <div class="card-custom">
       <div class="d-flex justify-content-between align-items-center mb-3">
-        <h6 class="fw-bold m-0">📋 รายการอุปกรณ์ทั้งหมด</h6>
-        <button onclick="loadAdminData()" class="btn btn-sm btn-light text-primary">🔄 รีเฟรช</button>
+        <h6 class="fw-bold m-0"><i class="fas fa-list-ul me-2 text-primary"></i>รายการอุปกรณ์ล่าสุด</h6>
+        <button onclick="loadAdminData()" class="btn btn-sm btn-light text-primary refresh-btn">
+          <i class="fas fa-sync-alt me-1"></i>รีเฟรช
+        </button>
       </div>
       <div id="inventoryList">
-        <div class="text-center p-4">กำลังโหลดข้อมูล...</div>
+        <div class="text-center p-4 text-muted small">กำลังโหลดข้อมูลอุปกรณ์...</div>
       </div>
     </div>
-
     <div class="card-custom">
-      <h6 class="fw-bold mb-3">🕒 ประวัติย้อนหลัง 15 รายการ</h6>
+      <h6 class="fw-bold mb-3"><i class="fas fa-history me-2 text-primary"></i>ประวัติย้อนหลัง 15 รายการ</h6>
       <div class="table-responsive">
-        <table class="table table-sm table-hover border-top">
+        <table class="table table-sm table-hover border-top m-0">
           <tbody id="historyList">
-            <tr><td class="text-center py-4">กำลังโหลดประวัติ...</td></tr>
+            <tr><td class="text-center py-4 text-muted small">กำลังดึงข้อมูลประวัติ...</td></tr>
           </tbody>
         </table>
       </div>
     </div>
   </div>
-
 <script>
   const LIFF_ID = "2009184396-CWSjU5hZ"; 
   const GAS_URL = "https://script.google.com/macros/s/AKfycbwgsV2B-36BDdsiKjFtgHYH_ZVyahwelzJCVi2QiLr7VrzaAZa8TpQGJU7yW3IoD_tPHQ/exec";
-
   async function init() {
     try {
       await liff.init({ liffId: LIFF_ID });
-      if (!liff.isLoggedIn()) { 
-        liff.login(); 
-        return; 
+      if (!liff.isLoggedIn()) {
+        liff.login();
+        return;
       }
       loadAdminData();
-    } catch (e) { 
-      console.log("LIFF Init Error:", e);
-      loadAdminData(); // ให้โหลดข้อมูลต่อเผื่อเทสบนเบราว์เซอร์
+    } catch (e) {
+      console.error("LIFF Init Error", e);
+      loadAdminData();
     }
   }
-
   async function loadAdminData() {
     try {
-      // เรียกข้อมูลชุดใหญ่ชุดเดียวเพื่อความเร็ว
       const response = await fetch(`${GAS_URL}?action=getAdminHistory`);
       const data = await response.json();
-
-      // 1. อัปเดตยอดรวมด้านบน
       document.getElementById('sumReady').innerText = data.summary.ready;
       document.getElementById('sumBorrowed').innerText = data.summary.borrowed;
-
-      // 2. แสดงรายการอุปกรณ์ปัจจุบัน
       const invContainer = document.getElementById('inventoryList');
       invContainer.innerHTML = "";
       data.items.forEach(item => {
         const isBorrowed = item.status.includes("ยืม");
         invContainer.innerHTML += `
           <div class="d-flex justify-content-between align-items-center mb-2 border-bottom pb-2">
-            <div>
+            <div class="text-truncate" style="max-width: 65%;">
               <span class="fw-bold text-dark">${item.id}</span> 
-              <small class="text-muted ms-2">${item.room}</small>
+              <small class="text-muted ms-1">${item.room}</small>
             </div>
             <div class="d-flex align-items-center">
               <span class="status-dot ${isBorrowed ? 'bg-borrowed' : 'bg-ready'}"></span>
-              <small class="${isBorrowed ? 'text-danger' : 'text-success'}">${item.status}</small>
+              <small class="${isBorrowed ? 'text-danger font-weight-bold' : 'text-success'}">${item.status}</small>
             </div>
           </div>`;
       });
-
-      // 3. แสดงประวัติย้อนหลัง (เรียงตาม Logs)
       const histContainer = document.getElementById('historyList');
       histContainer.innerHTML = "";
-      if(data.history && data.history.length > 0) {
+      if (data.history && data.history.length > 0) {
         data.history.forEach(log => {
           const isBorrow = log.action.includes('ยืม');
           histContainer.innerHTML += `
             <tr class="align-middle">
-              <td class="text-muted" style="width: 25%">${log.timestamp}</td>
+              <td class="text-muted small" style="width: 25%">${log.timestamp}</td>
               <td class="fw-bold" style="width: 25%">${log.itemID}</td>
-              <td class="${isBorrow ? 'text-danger' : 'text-success'} fw-bold">${log.action}</td>
+              <td class="${isBorrow ? 'text-danger' : 'text-success'} fw-bold" style="width: 50%">${log.action}</td>
             </tr>`;
         });
       } else {
-        histContainer.innerHTML = "<tr><td class='text-center'>ไม่พบประวัติการทำรายการ</td></tr>";
+        histContainer.innerHTML = "<tr><td class='text-center py-3 text-muted small'>ไม่พบข้อมูลการทำรายการในระบบ</td></tr>";
       }
-
     } catch (e) {
-      console.error("Load Error:", e);
-      document.getElementById('inventoryList').innerHTML = "<div class='text-center text-danger'>โหลดข้อมูลไม่สำเร็จ กรุณาลองใหม่อีกครั้ง</div>";
+      console.error("Fetch Error:", e);
+      document.getElementById('inventoryList').innerHTML = "<div class='text-center text-danger py-4 small'>ไม่สามารถเชื่อมต่อฐานข้อมูลได้</div>";
     }
   }
-
   window.onload = init;
 </script>
 </body>
