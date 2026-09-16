@@ -58,7 +58,11 @@ function saveUserData(lineId, obj) {
     sheet.getRange(targetRow, 4).setValue(role);
     SpreadsheetApp.flush();
 
-    return { status: "SUCCESS", user: { name: name, phone: phone, role: role } };
+    const savedUser = { name: name, phone: phone, role: role };
+    if (typeof setCachedUserData_ === "function") {
+      setCachedUserData_(normalizedLineId, savedUser);
+    }
+    return { status: "SUCCESS", user: savedUser };
   } finally {
     lock.releaseLock();
   }
@@ -89,6 +93,9 @@ function recordVerify(lineId, verificationType) {
           && Number.isFinite(timestamp)
           && now.getTime() - timestamp >= 0
           && now.getTime() - timestamp < VERIFICATION_WINDOW_MS) {
+        if (typeof setCachedVerifyStatus_ === "function") {
+          setCachedVerifyStatus_(normalizedLineId, true);
+        }
         return { status: "SUCCESS", verified: true, duplicate: true };
       }
     }
@@ -96,6 +103,9 @@ function recordVerify(lineId, verificationType) {
     const targetRow = sheet.getLastRow() + 1;
     sheet.getRange(targetRow, 1, 1, 4).setValues([[normalizedLineId, normalizedType, now, "SUCCESS"]]);
     SpreadsheetApp.flush();
+    if (typeof setCachedVerifyStatus_ === "function") {
+      setCachedVerifyStatus_(normalizedLineId, true);
+    }
     return { status: "SUCCESS", verified: true };
   } finally {
     lock.releaseLock();

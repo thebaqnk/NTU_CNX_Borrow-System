@@ -53,6 +53,7 @@ function loadIndex(fetchSteps) {
   let reloadCount = 0;
   const location = {
     href: "https://example.test/?id=RETURN",
+    search: "?id=RETURN",
     reload() {
       reloadCount += 1;
     },
@@ -103,7 +104,10 @@ function loadIndex(fetchSteps) {
   context.window = { location };
 
   vm.createContext(context);
-  vm.runInContext(`${source}\nthis.__app = { callGAS, doVerify, saveUser };`, context);
+  vm.runInContext(
+    `${source}\nthis.__app = { callGAS, doAction, doVerify, init, saveUser, sys };`,
+    context,
+  );
 
   return {
     app: context.__app,
@@ -114,6 +118,61 @@ function loadIndex(fetchSteps) {
     response,
   };
 }
+
+test("QR handoff loads inventory, profile, and verification in one request", async () => {
+  const requests = [];
+  const fixture = loadIndex([
+    async (_url, options) => {
+      requests.push(JSON.parse(options.body));
+      return response({
+        info: {
+          id: "ITEM01",
+          floor: "1",
+          room: "101",
+          status: "ถูกยืม",
+          type: "ITEM",
+        },
+        user: {
+          name: "Debug User",
+          phone: "0612345678",
+          role: "บุคลากร",
+        },
+        verified: true,
+      });
+    },
+  ]);
+
+  await fixture.app.init();
+
+  assert.deepEqual(requests, [
+    { action: "getAppState", email: "U_TEST", id: "RETURN" },
+  ]);
+  assert.equal(fixture.elements.get("uNameDisp").innerText, "Debug User (บุคลากร)");
+  assert.equal(fixture.elements.get("uPhoneDisp").innerText, "📞 0612345678");
+});
+
+test("return action sends no personal data from the browser", async () => {
+  const requests = [];
+  const fixture = loadIndex([
+    async (_url, options) => {
+      requests.push(JSON.parse(options.body));
+      return response({ status: "SUCCESS" });
+    },
+  ]);
+  fixture.app.sys.email = "U_TEST";
+  fixture.app.sys.id = "ITEM01";
+
+  await fixture.app.doAction("คืนอุปกรณ์");
+
+  assert.deepEqual(requests, [
+    {
+      action: "processActionV2",
+      email: "U_TEST",
+      obj: { id: "ITEM01", action: "คืนอุปกรณ์" },
+    },
+  ]);
+  assert.equal(fixture.location.href, "ReturnSuccess.html");
+});
 
 test("profile save accepts a successful read-back after an ambiguous write response", async () => {
   const fixture = loadIndex([
