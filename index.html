@@ -67,9 +67,10 @@
   </div>
 
 <script>
-  const LIFF_ID = "2009184396-t5vJHbvQ"; 
+  const LIFF_ID = "2009184396-t5vJHbvQ";
   const GAS_URL = "https://script.google.com/macros/s/AKfycbwgsV2B-36BDdsiKjFtgHYH_ZVyahwelzJCVi2QiLr7VrzaAZa8TpQGJU7yW3IoD_tPHQ/exec";
   const BOT_LINK = "https://line.me/R/ti/p/@YOUR_BOT_ID"; // <-- เปลี่ยน @YOUR_BOT_ID เป็นไอดีบอทคุณนะครับ
+  const READ_BACK_DELAY_MS = 400;
 
   let sys = { id: new URLSearchParams(window.location.search).get('id') || "", email: "" };
 
@@ -83,14 +84,77 @@
     }
   }, 1000); 
 
-  async function callGAS(action, data = {}) {
+  function wait(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  function normalizePhone(value) {
+    return String(value ?? "").replace(/\s+/g, "").trim();
+  }
+
+  async function callGAS(action, data = {}, options = {}) {
+    const retries = options.retries || 0;
+    let lastError;
+
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        const response = await fetch(GAS_URL, {
+          method: "POST",
+          headers: {
+            "Accept": "application/json",
+            "Content-Type": "text/plain;charset=utf-8"
+          },
+          body: JSON.stringify({ action, email: sys.email, ...data })
+        });
+        const rawBody = await response.text();
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        let result;
+        try {
+          result = JSON.parse(rawBody);
+        } catch (error) {
+          throw new Error("Apps Script ตอบกลับไม่ใช่ JSON");
+        }
+
+        if (result && String(result.status).toLowerCase() === "error") {
+          throw new Error(result.message || "Apps Script ทำงานไม่สำเร็จ");
+        }
+        return result;
+      } catch (error) {
+        lastError = error;
+        if (attempt < retries) await wait(READ_BACK_DELAY_MS);
+      }
+    }
+
+    throw lastError || new Error("ไม่สามารถติดต่อ Apps Script ได้");
+  }
+
+  async function readBackProfile(expected) {
     try {
-      const response = await fetch(GAS_URL, { 
-        method: "POST", 
-        body: JSON.stringify({ action, email: sys.email, ...data }) 
-      });
-      return await response.json();
-    } catch (err) { return null; }
+      await wait(READ_BACK_DELAY_MS);
+      const saved = await callGAS("getUserData", {}, { retries: 1 });
+      if (!saved) return false;
+
+      const expectedPhone = normalizePhone(expected.phone);
+      const savedPhone = normalizePhone(saved.phone);
+      const phoneMatches = savedPhone === expectedPhone || `0${savedPhone}` === expectedPhone;
+      return String(saved.name || "").trim() === String(expected.name || "").trim()
+        && String(saved.role || "").trim() === String(expected.role || "").trim()
+        && phoneMatches;
+    } catch (error) {
+      console.error("Profile read-back failed", error);
+      return false;
+    }
+  }
+
+  async function readBackVerification() {
+    try {
+      await wait(READ_BACK_DELAY_MS);
+      return await callGAS("checkVerifyStatus", {}, { retries: 1 }) === true;
+    } catch (error) {
+      console.error("Verification read-back failed", error);
+      return false;
+    }
   }
 
   async function init() {
@@ -101,9 +165,9 @@
       const profile = await liff.getProfile();
       sys.email = profile.userId;
       const [info, user, verified] = await Promise.all([
-        callGAS("getInventoryData", { id: sys.id }),
-        callGAS("getUserData"),
-        callGAS("checkVerifyStatus")
+        callGAS("getInventoryData", { id: sys.id }, { retries: 1 }),
+        callGAS("getUserData", {}, { retries: 1 }),
+        callGAS("checkVerifyStatus", {}, { retries: 1 })
       ]);
       if (!info) throw new Error("ไม่พบข้อมูลอุปกรณ์");
       renderMain(info, user, verified);
@@ -143,11 +207,20 @@
 
   async function doVerify() {
     Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-    const res = await callGAS("recordVerify", { id: sys.id });
-    if(res && res.status === "SUCCESS") { 
-       window.location.href = "VerifySuccess.html"; // เช็คอินจุดคืน ไปหน้าสำเร็จทันที
+    let writeConfirmed = false;
+    try {
+      const res = await callGAS("recordVerify", { id: sys.id });
+      writeConfirmed = res && res.status === "SUCCESS";
+    } catch (error) {
+      console.error("Verification write response failed", error);
     }
-    else { Swal.fire('ผิดพลาด', 'ไม่สำเร็จ', 'error'); }
+
+    const readBackConfirmed = await readBackVerification();
+    if (writeConfirmed || readBackConfirmed) {
+       window.location.href = "VerifySuccess.html"; // เช็คอินจุดคืน ไปหน้าสำเร็จทันที
+    } else {
+      Swal.fire('ผิดพลาด', 'ระบบยังยืนยันจุดคืนไม่ได้ กรุณาลองอีกครั้ง', 'error');
+    }
   }
 
   async function doAction(act) {
@@ -183,12 +256,27 @@
   }
 
   async function saveUser() {
-    const data = { name: document.getElementById('uName').value, phone: document.getElementById('uPhone').value, role: document.getElementById('uRole').value };
+    const data = {
+      name: document.getElementById('uName').value.trim(),
+      phone: normalizePhone(document.getElementById('uPhone').value),
+      role: document.getElementById('uRole').value
+    };
     if(!data.name || !data.phone) { Swal.fire('เตือน', 'กรุณากรอกข้อมูลให้ครบ', 'warning'); return; }
     Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-    const res = await callGAS("saveUserData", { data });
-    if(res && res.status === "SUCCESS") { location.reload(); }
-    else { Swal.fire('ผิดพลาด', 'ไม่สำเร็จ', 'error'); }
+    let writeConfirmed = false;
+    try {
+      const res = await callGAS("saveUserData", { data });
+      writeConfirmed = res && res.status === "SUCCESS";
+    } catch (error) {
+      console.error("Profile write response failed", error);
+    }
+
+    const readBackConfirmed = await readBackProfile(data);
+    if (writeConfirmed || readBackConfirmed) {
+      location.reload();
+    } else {
+      Swal.fire('ผิดพลาด', 'ระบบยังบันทึกโปรไฟล์ไม่ได้ กรุณาลองอีกครั้ง', 'error');
+    }
   }
 
   function showForm() {
