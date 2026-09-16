@@ -73,6 +73,7 @@
   const READ_BACK_DELAY_MS = 400;
 
   let sys = { id: new URLSearchParams(window.location.search).get('id') || "", email: "" };
+  let currentUser = null;
 
   const emojis = ["📚", "📓", "✏️", "🎤", "📢"];
   let emojiIdx = 0;
@@ -90,6 +91,16 @@
 
   function normalizePhone(value) {
     return String(value ?? "").replace(/\s+/g, "").trim();
+  }
+
+  function normalizeUser(user) {
+    if (!user || typeof user !== "object") return null;
+    const normalized = {
+      name: String(user.name ?? "").trim(),
+      phone: normalizePhone(user.phone),
+      role: String(user.role ?? "").trim()
+    };
+    return normalized.name && normalized.phone && normalized.role ? normalized : null;
   }
 
   async function callGAS(action, data = {}, options = {}) {
@@ -164,17 +175,14 @@
       if (!liff.isLoggedIn()) { liff.login(); return; }
       const profile = await liff.getProfile();
       sys.email = profile.userId;
-      const [info, user, verified] = await Promise.all([
-        callGAS("getInventoryData", { id: sys.id }, { retries: 1 }),
-        callGAS("getUserData", {}, { retries: 1 }),
-        callGAS("checkVerifyStatus", {}, { retries: 1 })
-      ]);
-      if (!info) throw new Error("ไม่พบข้อมูลอุปกรณ์");
-      renderMain(info, user, verified);
+      const state = await callGAS("getAppState", { id: sys.id }, { retries: 1 });
+      if (!state || !state.info) throw new Error("ไม่พบข้อมูลอุปกรณ์");
+      renderMain(state.info, normalizeUser(state.user), state.verified === true);
     } catch (e) { statusText.innerHTML = `เกิดข้อผิดพลาด: ${e.message}`; }
   }
 
   function renderMain(info, user, verified) {
+    currentUser = normalizeUser(user);
     document.getElementById('loadingScreen').classList.add('d-none');
     document.getElementById('contentArea').classList.remove('d-none');
     let headerHtml = info.type === "POINT" 
@@ -182,9 +190,9 @@
       : `<div style="background: var(--p-purple); color: white; padding: 20px 15px; border-radius: 18px; margin-bottom: 20px; text-align: center;"><h5 class="mb-1">ชั้น ${info.floor} - ห้อง ${info.room}</h5><small>ID: ${info.id}</small></div>`;
     document.getElementById('pageHeader').innerHTML = headerHtml;
     
-    if (user) {
-      document.getElementById('uNameDisp').innerText = user.name + " (" + user.role + ")";
-      document.getElementById('uPhoneDisp').innerText = "📞 " + user.phone;
+    if (currentUser) {
+      document.getElementById('uNameDisp').innerText = currentUser.name + " (" + currentUser.role + ")";
+      document.getElementById('uPhoneDisp').innerText = "📞 " + currentUser.phone;
       document.getElementById('profileBox').classList.remove('d-none');
       document.getElementById('actionArea').classList.remove('d-none');
       
@@ -225,13 +233,12 @@
 
   async function doAction(act) {
     Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-    const user = await callGAS("getUserData");
-    
-    const res = await callGAS("processAction", { 
-      obj: { id: sys.id, action: act, name: user.name, phone: user.phone, role: user.role } 
-    });
+    try {
+      const res = await callGAS("processActionV2", {
+        obj: { id: sys.id, action: act }
+      });
 
-    if(res && res.status === "SUCCESS") { 
+      if(res && res.status === "SUCCESS") {
       // *** จุดสำคัญ: ถ้าเป็นเคส OT เท่านั้น ถึงจะถามให้เพิ่มเพื่อน ***
       if (res.isOT === true) {
         Swal.fire({
@@ -250,8 +257,11 @@
         // ยืม/คืนปกติ วิ่งไปหน้าสำเร็จทันที
         window.location.href = (act === "ยืมอุปกรณ์") ? "BorrowSuccess.html" : "ReturnSuccess.html"; 
       }
-    } else { 
-      Swal.fire('ผิดพลาด', 'ไม่สำเร็จ', 'error'); 
+      } else {
+        Swal.fire('ผิดพลาด', 'ไม่สำเร็จ', 'error');
+      }
+    } catch (error) {
+      Swal.fire('ผิดพลาด', error.message || 'ไม่สำเร็จ', 'error');
     }
   }
 

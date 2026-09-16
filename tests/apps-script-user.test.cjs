@@ -54,6 +54,7 @@ class FakeSheet {
 }
 
 function loadUserScript() {
+  const cache = new Map();
   const sheets = new Map([
     ["Users", new FakeSheet([["LineID", "name", "phone", "role"]])],
     ["VerificationLogs", new FakeSheet([["LineID", "VerificationType", "Timestamp", "Status"]])],
@@ -70,6 +71,13 @@ function loadUserScript() {
   };
   const lock = { waitLock() {}, releaseLock() {} };
   const context = {
+    CacheService: {
+      getScriptCache: () => ({
+        get: (key) => cache.get(key) ?? null,
+        put: (key, value) => cache.set(key, String(value)),
+        remove: (key) => cache.delete(key),
+      }),
+    },
     Date,
     LockService: { getDocumentLock: () => lock },
     Number,
@@ -78,13 +86,15 @@ function loadUserScript() {
       getActiveSpreadsheet: () => spreadsheet,
     },
   };
-  const source = fs.readFileSync(path.join(__dirname, "..", "apps-script", "User.gs"), "utf8");
+  const appStatePath = path.join(__dirname, "..", "apps-script", "AppState.gs");
+  const appStateSource = fs.existsSync(appStatePath) ? fs.readFileSync(appStatePath, "utf8") : "";
+  const source = `${appStateSource}\n${fs.readFileSync(path.join(__dirname, "..", "apps-script", "User.gs"), "utf8")}`;
   vm.createContext(context);
   vm.runInContext(
     `${source}\nthis.__app = { getUserData, saveUserData, recordVerify, checkVerifyStatus };`,
     context,
   );
-  return { app: context.__app, sheets };
+  return { app: context.__app, cache, sheets };
 }
 
 test("saveUserData preserves the leading zero in phone numbers", () => {
@@ -99,6 +109,11 @@ test("saveUserData preserves the leading zero in phone numbers", () => {
   assert.equal(result.status, "SUCCESS");
   assert.equal(fixture.sheets.get("Users").rows[1][2], "0612345678");
   assert.equal(fixture.sheets.get("Users").formats.get("2:3"), "@");
+  assert.deepEqual(JSON.parse(fixture.cache.get("user:U_TEST")), {
+    name: "Debug User",
+    phone: "0612345678",
+    role: "บุคลากร",
+  });
   assert.deepEqual(
     JSON.parse(JSON.stringify(fixture.app.getUserData("U_TEST"))),
     { name: "Debug User", phone: "0612345678", role: "บุคลากร" },
@@ -116,6 +131,7 @@ test("recordVerify is idempotent inside the verification window", () => {
   assert.equal(second.duplicate, true);
   assert.equal(fixture.sheets.get("VerificationLogs").rows.length, 2);
   assert.equal(fixture.sheets.get("VerificationLogs").rows[1][3], "SUCCESS");
+  assert.equal(fixture.cache.get("verification:U_TEST"), "1");
   assert.equal(fixture.app.checkVerifyStatus("U_TEST"), true);
 });
 
