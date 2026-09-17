@@ -71,6 +71,8 @@
   const GAS_URL = "https://script.google.com/macros/s/AKfycbwgsV2B-36BDdsiKjFtgHYH_ZVyahwelzJCVi2QiLr7VrzaAZa8TpQGJU7yW3IoD_tPHQ/exec";
   const BOT_LINK = "https://line.me/R/ti/p/@YOUR_BOT_ID"; // <-- เปลี่ยน @YOUR_BOT_ID เป็นไอดีบอทคุณนะครับ
   const READ_BACK_DELAY_MS = 400;
+  const BOOTSTRAP_TIMEOUT_MS = 4500;
+  const LEGACY_READ_TIMEOUT_MS = 8000;
 
   let sys = { id: new URLSearchParams(window.location.search).get('id') || "", email: "" };
   let currentUser = null;
@@ -105,9 +107,14 @@
 
   async function callGAS(action, data = {}, options = {}) {
     const retries = options.retries || 0;
+    const timeoutMs = options.timeoutMs || 0;
     let lastError;
 
     for (let attempt = 0; attempt <= retries; attempt++) {
+      const controller = timeoutMs > 0 ? new AbortController() : null;
+      const timeoutId = controller
+        ? setTimeout(() => controller.abort(), timeoutMs)
+        : null;
       try {
         const response = await fetch(GAS_URL, {
           method: "POST",
@@ -115,7 +122,8 @@
             "Accept": "application/json",
             "Content-Type": "text/plain;charset=utf-8"
           },
-          body: JSON.stringify({ action, email: sys.email, ...data })
+          body: JSON.stringify({ action, email: sys.email, ...data }),
+          ...(controller ? { signal: controller.signal } : {})
         });
         const rawBody = await response.text();
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -132,12 +140,25 @@
         }
         return result;
       } catch (error) {
-        lastError = error;
+        lastError = error && error.name === "AbortError"
+          ? new Error("การเชื่อมต่อใช้เวลานานเกินไป")
+          : error;
         if (attempt < retries) await wait(READ_BACK_DELAY_MS);
+      } finally {
+        if (timeoutId !== null) clearTimeout(timeoutId);
       }
     }
 
     throw lastError || new Error("ไม่สามารถติดต่อ Apps Script ได้");
+  }
+
+  async function loadLegacyState() {
+    const [info, user, verified] = await Promise.all([
+      callGAS("getInventoryData", { id: sys.id }, { timeoutMs: LEGACY_READ_TIMEOUT_MS }),
+      callGAS("getUserData", {}, { timeoutMs: LEGACY_READ_TIMEOUT_MS }),
+      callGAS("checkVerifyStatus", {}, { timeoutMs: LEGACY_READ_TIMEOUT_MS })
+    ]);
+    return { info, user, verified };
   }
 
   async function readBackProfile(expected) {
@@ -175,7 +196,14 @@
       if (!liff.isLoggedIn()) { liff.login(); return; }
       const profile = await liff.getProfile();
       sys.email = profile.userId;
-      const state = await callGAS("getAppState", { id: sys.id }, { retries: 1 });
+      let state;
+      try {
+        state = await callGAS("getAppState", { id: sys.id }, { timeoutMs: BOOTSTRAP_TIMEOUT_MS });
+      } catch (primaryError) {
+        console.error("Combined bootstrap failed; using legacy reads", primaryError);
+        statusText.innerText = "กำลังเชื่อมต่อสำรอง...";
+        state = await loadLegacyState();
+      }
       if (!state || !state.info) throw new Error("ไม่พบข้อมูลอุปกรณ์");
       renderMain(state.info, normalizeUser(state.user), state.verified === true);
     } catch (e) { statusText.innerHTML = `เกิดข้อผิดพลาด: ${e.message}`; }

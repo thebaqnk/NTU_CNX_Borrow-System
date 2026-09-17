@@ -59,10 +59,13 @@ function loadIndex(fetchSteps) {
     },
   };
   const swalCalls = [];
+  const scheduleTimer = setTimeout;
+  const cancelTimer = clearTimeout;
   let step = 0;
   const context = {
+    AbortController,
     URLSearchParams,
-    console,
+    console: { error() {}, log() {} },
     document: {
       addEventListener() {},
       getElementById(id) {
@@ -72,7 +75,18 @@ function loadIndex(fetchSteps) {
     fetch: async (...args) => {
       const handler = fetchSteps[step++];
       assert.ok(handler, `unexpected fetch #${step}`);
-      return handler(...args);
+      const handlerResult = Promise.resolve().then(() => handler(...args));
+      const signal = args[1] && args[1].signal;
+      if (!signal) return handlerResult;
+      if (signal.aborted) throw new DOMException("The operation was aborted", "AbortError");
+      const aborted = new Promise((resolve, reject) => {
+        signal.addEventListener(
+          "abort",
+          () => reject(new DOMException("The operation was aborted", "AbortError")),
+          { once: true },
+        );
+      });
+      return Promise.race([handlerResult, aborted]);
     },
     liff: {
       async getProfile() {
@@ -90,8 +104,10 @@ function loadIndex(fetchSteps) {
     },
     clearInterval() {},
     setTimeout(callback) {
-      callback();
-      return 0;
+      return scheduleTimer(callback, 0);
+    },
+    clearTimeout(timer) {
+      cancelTimer(timer);
     },
     Swal: {
       fire(...args) {
@@ -146,6 +162,49 @@ test("QR handoff loads inventory, profile, and verification in one request", asy
 
   assert.deepEqual(requests, [
     { action: "getAppState", email: "U_TEST", id: "RETURN" },
+  ]);
+  assert.equal(fixture.elements.get("uNameDisp").innerText, "Debug User (บุคลากร)");
+  assert.equal(fixture.elements.get("uPhoneDisp").innerText, "📞 0612345678");
+});
+
+test("QR handoff falls back to legacy reads when the combined request stalls", { timeout: 1000 }, async () => {
+  const requests = [];
+  const recordRequest = (options) => requests.push(JSON.parse(options.body));
+  const fixture = loadIndex([
+    async (_url, options) => {
+      recordRequest(options);
+      return new Promise(() => {});
+    },
+    async (_url, options) => {
+      recordRequest(options);
+      return response({
+        id: "RETURN",
+        room: "จุดคืนอุปกรณ์",
+        status: "พร้อมใช้งาน",
+        type: "POINT",
+      });
+    },
+    async (_url, options) => {
+      recordRequest(options);
+      return response({
+        name: "Debug User",
+        phone: "0612345678",
+        role: "บุคลากร",
+      });
+    },
+    async (_url, options) => {
+      recordRequest(options);
+      return response(true);
+    },
+  ]);
+
+  await fixture.app.init();
+
+  assert.deepEqual(requests.map(({ action }) => action), [
+    "getAppState",
+    "getInventoryData",
+    "getUserData",
+    "checkVerifyStatus",
   ]);
   assert.equal(fixture.elements.get("uNameDisp").innerText, "Debug User (บุคลากร)");
   assert.equal(fixture.elements.get("uPhoneDisp").innerText, "📞 0612345678");
