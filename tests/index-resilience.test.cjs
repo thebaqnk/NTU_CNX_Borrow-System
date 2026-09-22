@@ -19,7 +19,7 @@ function response(payload, options = {}) {
   };
 }
 
-function loadIndex(fetchSteps) {
+function loadIndex(fetchSteps, options = {}) {
   const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
   const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((match) => match[1]);
   const source = scripts.find((script) => script.includes("const LIFF_ID"));
@@ -103,8 +103,11 @@ function loadIndex(fetchSteps) {
       return 0;
     },
     clearInterval() {},
-    setTimeout(callback) {
-      return scheduleTimer(callback, 0);
+    setTimeout(callback, delay = 0) {
+      const scaledDelay = options.timerScale
+        ? Math.ceil(delay / options.timerScale)
+        : 0;
+      return scheduleTimer(callback, scaledDelay);
     },
     clearTimeout(timer) {
       cancelTimer(timer);
@@ -197,6 +200,99 @@ test("QR handoff falls back to legacy reads when the combined request stalls", {
       return response(true);
     },
   ]);
+
+  await fixture.app.init();
+
+  assert.deepEqual(requests.map(({ action }) => action), [
+    "getAppState",
+    "getInventoryData",
+    "getUserData",
+    "checkVerifyStatus",
+  ]);
+  assert.equal(fixture.elements.get("uNameDisp").innerText, "Debug User (บุคลากร)");
+  assert.equal(fixture.elements.get("uPhoneDisp").innerText, "📞 0612345678");
+});
+
+test("QR handoff waits for a slow successful combined response without starting legacy reads", { timeout: 1000 }, async () => {
+  const requests = [];
+  const recordRequest = (options) => requests.push(JSON.parse(options.body));
+  const fixture = loadIndex([
+    async (_url, options) => {
+      recordRequest(options);
+      await new Promise((resolve) => setTimeout(resolve, 17));
+      return response({
+        info: {
+          id: "A602",
+          floor: 6,
+          room: "ประชุม 602",
+          status: "พร้อมใช้งาน",
+          type: "ITEM",
+        },
+        user: {
+          name: "Debug User",
+          phone: "0612345678",
+          role: "บุคลากร",
+        },
+        verified: false,
+      });
+    },
+    async (_url, options) => {
+      recordRequest(options);
+      return response({
+        id: "A602",
+        floor: 6,
+        room: "ประชุม 602",
+        status: "พร้อมใช้งาน",
+        type: "ITEM",
+      });
+    },
+    async (_url, options) => {
+      recordRequest(options);
+      return response({
+        name: "Debug User",
+        phone: "0612345678",
+        role: "บุคลากร",
+      });
+    },
+    async (_url, options) => {
+      recordRequest(options);
+      return response(false);
+    },
+  ], { timerScale: 1000 });
+
+  await fixture.app.init();
+
+  assert.deepEqual(requests.map(({ action }) => action), ["getAppState"]);
+  assert.equal(fixture.elements.get("uNameDisp").innerText, "Debug User (บุคลากร)");
+  assert.equal(fixture.elements.get("uPhoneDisp").innerText, "📞 0612345678");
+});
+
+test("QR handoff allows slow legacy reads after the combined request fails", { timeout: 1000 }, async () => {
+  const requests = [];
+  const slowResponse = async (options, payload) => {
+    requests.push(JSON.parse(options.body));
+    await new Promise((resolve) => setTimeout(resolve, 17));
+    return response(payload);
+  };
+  const fixture = loadIndex([
+    async (_url, options) => {
+      requests.push(JSON.parse(options.body));
+      return response({}, { ok: false, status: 500 });
+    },
+    async (_url, options) => slowResponse(options, {
+      id: "A602",
+      floor: 6,
+      room: "ประชุม 602",
+      status: "พร้อมใช้งาน",
+      type: "ITEM",
+    }),
+    async (_url, options) => slowResponse(options, {
+      name: "Debug User",
+      phone: "0612345678",
+      role: "บุคลากร",
+    }),
+    async (_url, options) => slowResponse(options, false),
+  ], { timerScale: 1000 });
 
   await fixture.app.init();
 
