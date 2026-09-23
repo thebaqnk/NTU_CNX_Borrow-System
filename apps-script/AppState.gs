@@ -1,7 +1,9 @@
 const APP_STATE_USER_CACHE_SECONDS = 300;
+const APP_STATE_MISSING_USER_CACHE_SECONDS = 30;
 const APP_STATE_INVENTORY_CACHE_SECONDS = 20;
 const APP_STATE_VERIFY_TRUE_CACHE_SECONDS = 900;
-const APP_STATE_VERIFY_FALSE_CACHE_SECONDS = 5;
+const APP_STATE_VERIFY_FALSE_CACHE_SECONDS = 30;
+const APP_STATE_MISSING_USER_MARKER = "__APP_STATE_MISSING_USER__";
 
 function appStateCache_() {
   return CacheService.getScriptCache();
@@ -35,14 +37,22 @@ function readCachedJson_(key) {
   }
 }
 
-function getCachedUserData_(lineId) {
+function getCachedUserData_(lineId, readContext) {
   const key = userCacheKey_(lineId);
   const cached = readCachedJson_(key);
-  if (cached) return cached;
+  if (cached) {
+    return cached.marker === APP_STATE_MISSING_USER_MARKER ? null : cached;
+  }
 
-  const user = getUserData(lineId);
+  const user = getUserData(lineId, readContext);
   if (user) {
     appStateCache_().put(key, JSON.stringify(user), APP_STATE_USER_CACHE_SECONDS);
+  } else {
+    appStateCache_().put(
+      key,
+      JSON.stringify({ marker: APP_STATE_MISSING_USER_MARKER }),
+      APP_STATE_MISSING_USER_CACHE_SECONDS
+    );
   }
   return user;
 }
@@ -72,14 +82,14 @@ function clearCachedInventoryData_(id) {
   appStateCache_().remove(inventoryCacheKey_(id));
 }
 
-function getCachedVerifyStatus_(lineId) {
+function getCachedVerifyStatus_(lineId, readContext) {
   const cache = appStateCache_();
   const key = verificationCacheKey_(lineId);
   const cached = cache.get(key);
   if (cached === "1") return true;
   if (cached === "0") return false;
 
-  const verified = checkVerifyStatus(lineId) === true;
+  const verified = checkVerifyStatus(lineId, readContext) === true;
   cache.put(
     key,
     verified ? "1" : "0",
@@ -98,10 +108,11 @@ function setCachedVerifyStatus_(lineId, verified) {
 }
 
 function getAppState(lineId, id) {
+  const readContext = {};
   return {
     info: getCachedInventoryData_(id),
-    user: getCachedUserData_(lineId),
-    verified: getCachedVerifyStatus_(lineId)
+    user: getCachedUserData_(lineId, readContext),
+    verified: getCachedVerifyStatus_(lineId, readContext)
   };
 }
 

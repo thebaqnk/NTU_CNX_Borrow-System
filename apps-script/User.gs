@@ -4,15 +4,31 @@ function normalizeText_(value) {
   return value == null ? "" : String(value).trim();
 }
 
-function getUserData(lineId) {
+function getSpreadsheetForRead_(readContext) {
+  if (!readContext) return SpreadsheetApp.getActiveSpreadsheet();
+  if (!readContext.spreadsheet) {
+    readContext.spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  }
+  return readContext.spreadsheet;
+}
+
+function readSheetRows_(sheet, numColumns, useDisplayValues) {
+  const lastRow = sheet.getLastRow();
+  if (lastRow <= 1) return [];
+
+  const range = sheet.getRange(2, 1, lastRow - 1, numColumns);
+  return useDisplayValues ? range.getDisplayValues() : range.getValues();
+}
+
+function getUserData(lineId, readContext) {
   const normalizedLineId = normalizeText_(lineId);
   if (!normalizedLineId) return null;
 
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Users");
+  const sheet = getSpreadsheetForRead_(readContext).getSheetByName("Users");
   if (!sheet) return null;
 
-  const data = sheet.getDataRange().getValues();
-  for (let i = 1; i < data.length; i++) {
+  const data = readSheetRows_(sheet, 4, true);
+  for (let i = 0; i < data.length; i++) {
     if (normalizeText_(data[i][0]) === normalizedLineId) {
       return {
         name: normalizeText_(data[i][1]),
@@ -43,11 +59,11 @@ function saveUserData(lineId, obj) {
       sheet.getRange(1, 1, 1, 4).setValues([["LineID", "name", "phone", "role"]]);
     }
 
-    const data = sheet.getDataRange().getValues();
+    const data = readSheetRows_(sheet, 1, true);
     let targetRow = sheet.getLastRow() + 1;
-    for (let i = 1; i < data.length; i++) {
+    for (let i = 0; i < data.length; i++) {
       if (normalizeText_(data[i][0]) === normalizedLineId) {
-        targetRow = i + 1;
+        targetRow = i + 2;
         break;
       }
     }
@@ -85,8 +101,8 @@ function recordVerify(lineId, verificationType) {
     }
 
     const now = new Date();
-    const data = sheet.getDataRange().getValues();
-    for (let i = data.length - 1; i >= 1; i--) {
+    const data = readSheetRows_(sheet, 3, false);
+    for (let i = data.length - 1; i >= 0; i--) {
       const timestamp = new Date(data[i][2]).getTime();
       if (normalizeText_(data[i][0]) === normalizedLineId
           && normalizeText_(data[i][1]).toUpperCase() === normalizedType
@@ -112,16 +128,16 @@ function recordVerify(lineId, verificationType) {
   }
 }
 
-function checkVerifyStatus(lineId) {
+function checkVerifyStatus(lineId, readContext) {
   const normalizedLineId = normalizeText_(lineId);
   if (!normalizedLineId) return false;
 
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("VerificationLogs");
+  const sheet = getSpreadsheetForRead_(readContext).getSheetByName("VerificationLogs");
   if (!sheet) return false;
 
-  const data = sheet.getDataRange().getValues();
+  const data = readSheetRows_(sheet, 4, false);
   const now = new Date().getTime();
-  for (let i = data.length - 1; i >= 1; i--) {
+  for (let i = data.length - 1; i >= 0; i--) {
     const timestamp = new Date(data[i][2]).getTime();
     const status = normalizeText_(data[i][3]).toUpperCase();
     if (normalizeText_(data[i][0]) === normalizedLineId
