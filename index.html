@@ -76,6 +76,7 @@
 
   let sys = { id: new URLSearchParams(window.location.search).get('id') || "", email: "" };
   let currentUser = null;
+  let gasRequestSequence = 0;
 
   const emojis = ["📚", "📓", "✏️", "🎤", "📢"];
   let emojiIdx = 0;
@@ -116,8 +117,10 @@
         ? setTimeout(() => controller.abort(), timeoutMs)
         : null;
       try {
-        const response = await fetch(GAS_URL, {
+        const requestUrl = `${GAS_URL}?_=${Date.now()}-${++gasRequestSequence}`;
+        const response = await fetch(requestUrl, {
           method: "POST",
+          cache: "no-store",
           headers: {
             "Accept": "application/json",
             "Content-Type": "text/plain;charset=utf-8"
