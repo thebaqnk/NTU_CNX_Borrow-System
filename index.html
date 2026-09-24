@@ -74,7 +74,7 @@
   const BOOTSTRAP_TIMEOUT_MS = 30000;
   const LEGACY_READ_TIMEOUT_MS = 30000;
 
-  let sys = { id: new URLSearchParams(window.location.search).get('id') || "", email: "" };
+  let sys = { id: "", email: "" };
   let currentUser = null;
   let gasRequestSequence = 0;
 
@@ -196,6 +196,7 @@
     const statusText = document.getElementById('statusText');
     try {
       await liff.init({ liffId: LIFF_ID });
+      sys.id = new URLSearchParams(window.location.search).get('id') || "";
       if (!liff.isLoggedIn()) { liff.login(); return; }
       const profile = await liff.getProfile();
       sys.email = profile.userId;

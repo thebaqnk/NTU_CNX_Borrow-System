@@ -52,8 +52,8 @@ function loadIndex(fetchSteps, options = {}) {
 
   let reloadCount = 0;
   const location = {
-    href: "https://example.test/?id=RETURN",
-    search: "?id=RETURN",
+    href: `https://example.test/${options.initialSearch || "?id=RETURN"}`,
+    search: options.initialSearch || "?id=RETURN",
     reload() {
       reloadCount += 1;
     },
@@ -92,7 +92,12 @@ function loadIndex(fetchSteps, options = {}) {
       async getProfile() {
         return { userId: "U_TEST" };
       },
-      async init() {},
+      async init() {
+        if (options.searchAfterLiffInit) {
+          location.search = options.searchAfterLiffInit;
+          location.href = `https://example.test/${options.searchAfterLiffInit}`;
+        }
+      },
       isLoggedIn() {
         return true;
       },
@@ -168,6 +173,40 @@ test("QR handoff loads inventory, profile, and verification in one request", asy
   ]);
   assert.equal(fixture.elements.get("uNameDisp").innerText, "Debug User (บุคลากร)");
   assert.equal(fixture.elements.get("uPhoneDisp").innerText, "📞 0612345678");
+});
+
+test("QR handoff reads the return-point id after LIFF restores liff.state", async () => {
+  const requests = [];
+  const fixture = loadIndex([
+    async (_url, options) => {
+      requests.push(JSON.parse(options.body));
+      return response({
+        info: {
+          id: "RETURN",
+          floor: "-",
+          room: "จุดคืนอุปกรณ์ (กลาง)",
+          status: "",
+          type: "POINT",
+        },
+        user: {
+          name: "Debug User",
+          phone: "0612345678",
+          role: "บุคลากร",
+        },
+        verified: false,
+      });
+    },
+  ], {
+    initialSearch: "?liff.state=%3Fid%3DRETURN",
+    searchAfterLiffInit: "?id=RETURN",
+  });
+
+  await fixture.app.init();
+
+  assert.deepEqual(requests, [
+    { action: "getAppState", email: "U_TEST", id: "RETURN" },
+  ]);
+  assert.match(fixture.elements.get("pageHeader").innerHTML, /จุดคืนอุปกรณ์/);
 });
 
 test("Apps Script calls bypass cached one-time redirects", async () => {
