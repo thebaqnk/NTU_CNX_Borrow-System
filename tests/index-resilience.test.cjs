@@ -209,7 +209,7 @@ test("QR handoff reads the return-point id after LIFF restores liff.state", asyn
   assert.match(fixture.elements.get("pageHeader").innerHTML, /จุดคืนอุปกรณ์/);
 });
 
-test("Apps Script calls bypass cached one-time redirects", async () => {
+test("Apps Script calls use unique no-store URLs on the same origin", async () => {
   const requests = [];
   const fixture = loadIndex([
     async (url, options) => {
@@ -231,12 +231,9 @@ test("Apps Script calls bypass cached one-time redirects", async () => {
   assert.notEqual(requests[0].url, requests[1].url);
 
   for (const request of requests) {
-    const url = new URL(request.url);
-    assert.equal(url.origin, "https://script.google.com");
-    assert.equal(
-      url.pathname,
-      "/macros/s/AKfycbwgsV2B-36BDdsiKjFtgHYH_ZVyahwelzJCVi2QiLr7VrzaAZa8TpQGJU7yW3IoD_tPHQ/exec",
-    );
+    const url = new URL(request.url, "https://example.test");
+    assert.equal(url.origin, "https://example.test");
+    assert.equal(url.pathname, "/api/apps-script");
     assert.ok(url.searchParams.get("_"));
   }
 });
@@ -284,13 +281,13 @@ test("QR handoff falls back to legacy reads when the combined request stalls", {
   assert.equal(fixture.elements.get("uPhoneDisp").innerText, "📞 0612345678");
 });
 
-test("QR handoff waits for a slow successful combined response without starting legacy reads", { timeout: 1000 }, async () => {
+test("QR handoff waits past the former 30-second window when using the same-origin proxy", { timeout: 1000 }, async () => {
   const requests = [];
   const recordRequest = (options) => requests.push(JSON.parse(options.body));
   const fixture = loadIndex([
     async (_url, options) => {
       recordRequest(options);
-      await new Promise((resolve) => setTimeout(resolve, 17));
+      await new Promise((resolve) => setTimeout(resolve, 35));
       return response({
         info: {
           id: "A602",
