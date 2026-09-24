@@ -170,6 +170,38 @@ test("QR handoff loads inventory, profile, and verification in one request", asy
   assert.equal(fixture.elements.get("uPhoneDisp").innerText, "📞 0612345678");
 });
 
+test("Apps Script calls bypass cached one-time redirects", async () => {
+  const requests = [];
+  const fixture = loadIndex([
+    async (url, options) => {
+      requests.push({ url, cache: options.cache });
+      return response({ request: 1 });
+    },
+    async (url, options) => {
+      requests.push({ url, cache: options.cache });
+      return response({ request: 2 });
+    },
+  ]);
+
+  await fixture.app.callGAS("firstRead");
+  await fixture.app.callGAS("secondRead");
+
+  assert.equal(requests.length, 2);
+  assert.equal(requests[0].cache, "no-store");
+  assert.equal(requests[1].cache, "no-store");
+  assert.notEqual(requests[0].url, requests[1].url);
+
+  for (const request of requests) {
+    const url = new URL(request.url);
+    assert.equal(url.origin, "https://script.google.com");
+    assert.equal(
+      url.pathname,
+      "/macros/s/AKfycbwgsV2B-36BDdsiKjFtgHYH_ZVyahwelzJCVi2QiLr7VrzaAZa8TpQGJU7yW3IoD_tPHQ/exec",
+    );
+    assert.ok(url.searchParams.get("_"));
+  }
+});
+
 test("QR handoff falls back to legacy reads when the combined request stalls", { timeout: 1000 }, async () => {
   const requests = [];
   const recordRequest = (options) => requests.push(JSON.parse(options.body));
